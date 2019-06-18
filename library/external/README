@@ -1,0 +1,9 @@
+
+
+
+## cbc.solve source ################################
+(WITH MODIFICATIONS, ALBAN SOUCHE, SIMULA, MARCH 2019)
+FROM:
+https://code.launchpad.net/~cbc-core/cbc.solve/main
+VERSION:
+927 gabrib@simula.no-20130314135248-5t7u23mbsr1k42pk
