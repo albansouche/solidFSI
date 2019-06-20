@@ -63,7 +63,7 @@ class Setup(Setup_base):
         os.environ['OMP_NUM_THREADS'] = '4'
 
         # set log outputs from dolfin
-        set_log_level(20)  # 0 to 100 / more info >> lower value
+        set_log_level(90)  # 0 to 100 / more info >> lower value
 
     ############################################################################
 
@@ -103,6 +103,7 @@ class Setup(Setup_base):
     def setup_Dirichlet_BCs(self):
 
         noslip = Constant((0.0, 0.0, 0.0))
+        Freeslip = Constant(0.0)
 
         # Fluid velocity BCs
 
