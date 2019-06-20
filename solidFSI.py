@@ -113,7 +113,7 @@ while t < setup.T:
     except:
         pass
 
-    # TO DO:make a pressure expression instead of using scalar*t
+    # TODO: Make a pressure expression instead of using scalar*t
     T.vector()[:] = assemble(inner(Constant(1E4*t)*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
     T.vector()[:] = - np.divide(T.vector().get_local(), Tn.vector().get_local())
     TT = project(T, D)
