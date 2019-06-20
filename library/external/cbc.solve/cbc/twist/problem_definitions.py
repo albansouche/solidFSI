@@ -4,8 +4,8 @@ __license__ = "GNU GPL Version 3 or any later version"
 
 from dolfin import *
 from cbc.common import CBCProblem
-from cbc.twist.solution_algorithms import StaticMomentumBalanceSolver, MomentumBalanceSolver, CG1MomentumBalanceSolver
-from cbc.twist.solution_algorithms import default_parameters as solver_parameters
+from cbc.twist.solution_algorithms_test_syver import StaticMomentumBalanceSolver, MomentumBalanceSolver, CG1MomentumBalanceSolver
+from cbc.twist.solution_algorithms_test_syver import default_parameters as solver_parameters
 from cbc.twist.kinematics import GreenLagrangeStrain
 from sys import exit
 
@@ -45,6 +45,10 @@ class StaticHyperelasticity(CBCProblem):
 
     def dirichlet_boundaries(self):
         """Return boundaries over which Dirichlet conditions act"""
+        return []
+
+    def dirichlet_function_spaces(self):
+        """Return function spaces for the components that respect Dirichlet conditions"""
         return []
 
     def neumann_conditions(self):
@@ -171,6 +175,10 @@ class Hyperelasticity(StaticHyperelasticity):
 
     def dirichlet_boundaries(self):
         """Return boundaries over which Dirichlet conditions act"""
+        return []
+
+    def dirichlet_function_spaces(self):
+        """Return function spaces for the components that respect Dirichlet conditions"""
         return []
 
     def neumann_conditions(self):

@@ -50,7 +50,8 @@ class Setup(Setup_base):
         self.fsi_id = 21  # IMPORTANT VARIABLE value of the FSI facet id in the parent mesh file
         self.inlet_id = 1  # fluid inlet id
         self.outlet_id = 2  # fluid outlet id
-        self.inlet_outlet_s_id = 10  # solid inlet and outlet id
+        self.inlet_s_id = 10  # solid inlet id
+        self.outlet_s_id = 11  # solid outlet id
 
         # Material constitutive law
         self.solid_solver_model = "LinearElastic"  # "LinearElastic" or "StVenantKirchhoff"
@@ -103,7 +104,7 @@ class Setup(Setup_base):
     def setup_Dirichlet_BCs(self):
 
         noslip = Constant((0.0, 0.0, 0.0))
-        Freeslip = Constant(0.0)
+        freeslip = Constant(0.0)
 
         # Fluid velocity BCs
 
@@ -112,9 +113,9 @@ class Setup(Setup_base):
         # Mesh problem bcs
 
         # Dirichlet conditions for the solid problem
-        #self.bcs_s_vals = [freeslip]
-        self.bcs_s_vals = [noslip]
-        self.bcs_s_ids = [self.inlet_outlet_s_id]
+        self.bcs_s_vals = [noslip, freeslip]
+        self.bcs_s_ids = [self.inlet_s_id, self.outlet_s_id]
+        self.bcs_s_fct_sps = ['vector', 'y']
 
         return
 

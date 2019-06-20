@@ -23,6 +23,20 @@ def default_parameters():
     return p
 
 
+def D_function_space_choice(vector, condition_types):
+    D_function_space = []
+    for condition in condition_types:
+        if condition == 'vector':
+            D_function_space += [vector]
+        elif condition == 'x':
+            D_function_space += [vector.sub(0)]
+        elif condition == 'y':
+            D_function_space += [vector.sub(1)]
+        elif condition == 'z':
+            D_function_space += [vector.sub(2)]
+    return D_function_space
+
+
 class StaticMomentumBalanceSolver(CBCSolver):
     "Solves the static balance of linear momentum"
 
@@ -37,9 +51,10 @@ class StaticMomentumBalanceSolver(CBCSolver):
         vector = VectorFunctionSpace(mesh, "CG", element_degree)
 
         # Create boundary conditions
+        dirichlet_function_spaces = D_function_space_choice(vector, problem.dirichlet_function_spaces())
         bcu = create_dirichlet_conditions(problem.dirichlet_values(),
                                           problem.dirichlet_boundaries(),
-                                          vector)
+                                          dirichlet_function_spaces)
 
         # Define fields
         # Test and trial functions
@@ -160,11 +175,17 @@ class MomentumBalanceSolver(CBCSolver):
             v0 = Function(vector)
             v0.vector()[:] = loadtxt(file_name)[:]
 
+
+        # Define function spaces or subspaces for boundary conditions
+
+
         # Create boundary conditions
         dirichlet_values = problem.dirichlet_values()
+        dirichlet_function_spaces = D_function_space_choice(vector, problem.dirichlet_function_spaces())
         bcu = create_dirichlet_conditions(dirichlet_values,
                                           problem.dirichlet_boundaries(),
-                                          vector)
+                                          dirichlet_function_spaces)
+        #                                 vector.sub(1))
 
         # Define fields
         # Test and trial functions
@@ -454,10 +475,16 @@ class CG1MomentumBalanceSolver(CBCSolver):
             v0.vector()[:] = _v0[:]
 
         # Create boundary conditions
+        ####### problem: Hyperelasticity ########################
+        ####### dirichlet_values: [Constant((0.0, 0.0, 0.0))] ###
+        ####### dirichlet_boundaries: [10] (?) ##################
+        ####### mixed_element_sub(0): Deformation (vector) ######
         dirichlet_values = problem.dirichlet_values()
+        dirichlet_function_spaces = D_function_space_choice(mixed_element.sub(0), problem.dirichlet_function_spaces())
         bcu = create_dirichlet_conditions(dirichlet_values,
                                           problem.dirichlet_boundaries(),
-                                          mixed_element.sub(0))
+                                          dirichlet_function_spaces)
+        #                                 mixed_element.sub(0).sub(1))
 
         # Functions
         xi, eta = split(V)

@@ -58,13 +58,17 @@ class CBCSolver:
 # --- Useful functions for solvers (non-member functions) ---
 
 
-def create_dirichlet_conditions(values, boundaries, function_space):
+def create_dirichlet_conditions(values, boundaries, function_spaces):
     """Create Dirichlet boundary conditions for given boundary values,
     boundaries and function space."""
 
     # Check that the size matches
     if len(values) != len(boundaries):
         error("The number of Dirichlet values does not match the number of Dirichlet boundaries.")
+    if len(values) != len(function_spaces):
+        error("The number of Dirichlet values does not match the number of function spaces.")
+    if len(boundaries) != len(function_spaces):
+        error("The number of Dirichlet boundaries  does not match the number of function spaces.")
 
     info("Creating %d Dirichlet boundary condition(s)." % len(values))
 
@@ -74,6 +78,7 @@ def create_dirichlet_conditions(values, boundaries, function_space):
 
         # Get current boundary
         boundary = boundaries[i]
+        function_space = function_spaces[i]
 
         # Case 0: boundary is a string
         if isinstance(boundary, str):

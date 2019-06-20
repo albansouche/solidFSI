@@ -45,8 +45,10 @@ class StructureSolver(Hyperelasticity):
         elif setup.solid_solver_model == 'Ogden':
             self.material = Ogden([alpha1, alpha2, alpha3, mu1, mu2, mu3])
 
-        self.D_bcs_vals = setup.bcs_s_vals  # Dirichlet values #FIXME, for more than 1 boundrary condition
-        self.D_bcs_ids = [(subM.boundaries_s, setup.bcs_s_ids[0])]  # Dirichlet ids #FIXME, for more than 1 boundrary condition
+        self.d_deg = setup.d_deg
+        self.D_bcs_vals = setup.bcs_s_vals  # Dirichlet values
+        self.D_bcs_ids = [(subM.boundaries_s, bcs_s_id) for bcs_s_id in setup.bcs_s_ids]  # Dirichlet ids
+        self.D_bcs_fct_sps = setup.bcs_s_fct_sps # Dirichlet function space types
 
         self.N_bcs_vals = [tract_S]  # Neumann values
         self.N_bcs_ids = ["on_boundary"]  # Neumann ids
@@ -76,6 +78,9 @@ class StructureSolver(Hyperelasticity):
 
     def dirichlet_boundaries(self):
         return self.D_bcs_ids  # [(MeshFunction, index1), (MeshFunction, index2)]
+
+    def dirichlet_function_spaces(self):
+        return self.D_bcs_fct_sps
 
     def neumann_conditions(self):
         return self.N_bcs_vals
