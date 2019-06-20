@@ -32,7 +32,18 @@ class StructureSolver(Hyperelasticity):
             self.material = LinearElastic([self.mu_s, self.lmbda])
         elif setup.solid_solver_model == 'StVenantKirchhoff':
             self.material = StVenantKirchhoff([self.mu_s, self.lmbda])
-        # TODO: add them all from CBC material models
+        elif setup.solid_solver_model == 'MooneyRivlin':
+            self.material = MooneyRivlin([C1, C2])
+        elif setup.solid_solver_model == 'neoHookean':
+            self.material = neoHookean([half_nkT])
+        elif setup.solid_solver_model == 'Isihara':
+            self.material = Isihara([C10, C01, C20])
+        elif setup.solid_solver_model == 'Biderman':
+            self.material = Biderman([C10, C01, C20, C30])
+        elif setup.solid_solver_model == 'GentThomas':
+            self.material = GentThomas([C1, C2])
+        elif setup.solid_solver_model == 'Ogden':
+            self.material = Ogden([alpha1, alpha2, alpha3, mu1, mu2, mu3])
 
         self.D_bcs_vals = setup.bcs_s_vals  # Dirichlet values #FIXME, for more than 1 boundrary condition
         self.D_bcs_ids = [(subM.boundaries_s, setup.bcs_s_ids[0])]  # Dirichlet ids #FIXME, for more than 1 boundrary condition
