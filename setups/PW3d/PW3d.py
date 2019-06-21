@@ -13,6 +13,21 @@ from IPython import embed  # for debugging
 from mshr import *
 
 
+"""
+class Pexp(Expression):
+
+   def __init__(self, t, pmax, **kwargs):
+       self.t = t
+       self.pmax = pmax
+
+   def eval(self, value, x):
+        value = self.pmax*sin(self.t)#*sin(x[1])
+
+   def value_shape(self):
+       return (1,)
+"""
+
+
 class Setup(Setup_base):
 
     def __init__(self):
@@ -22,12 +37,21 @@ class Setup(Setup_base):
 
         # FE order
         self.d_deg = 1  # Deformation degree (solid)
+
         # Time
         self.T = 10  # End time s.
         self.dt = 0.1  # Time step s.
+
         # TODO: Pressure inlet expression
-        self.P_in_max = 1000  # Max inlet pressure Pa
+        # Pressure
+        self.p_in_max = 1.0E+4  # Max inlet pressure Pa
+        #self.p_exp = Pexp(t_0, self.p_in_max)
         self.t_ramp = 0.1  # s.
+        #self.p_exp = Expression('0.5*p_max*t*(1.0+sin(2.0*pi*f*t))',
+        #                        p_max=self.p_in_max, f=0.025, t=0.0, degree=1)
+        self.p_exp = Expression('0.5*p_max*t*(1.0+sin(2.0*pi*f*t))*(1-0.1*(x[1]+0.05)/L)',
+                                p_max=self.p_in_max, f=0.1, L=0.025, t=0.0, degree=1)
+
         # Solid prop.
         self.rho_s = 1.0E3  # density
         self.nu_s = 0.45  # Poisson ratio
@@ -72,7 +96,7 @@ class Setup(Setup_base):
 
         # read mesh from mesh file
         self.parent_mesh = Mesh(self.mesh_folder + "/mesh11.xml")#""/cyl10x2cm_better.xml")
-        mesh = refine(self.parent_mesh)
+        #self.parent_mesh = refine(self.parent_mesh)
 
         # read domains and boundaries from mesh file
         self.parent_domains = MeshFunction("size_t", self.parent_mesh, 3, self.parent_mesh.domains())
@@ -89,7 +113,7 @@ class Setup(Setup_base):
         toto << self.parent_domains
         self.parent_bds = MeshFunction("size_t", self.parent_mesh, 2, self.parent_mesh.domains())
         toto << self.parent_bds
-        embed()
+
 
         return
 
@@ -116,6 +140,7 @@ class Setup(Setup_base):
         # Dirichlet conditions for the solid problem
         self.bcs_s_vals = [noslip, freeslip]
         self.bcs_s_ids = [self.inlet_s_id, self.outlet_s_id]
+
         self.bcs_s_fct_sps = ['vector', 'y']
 
         return

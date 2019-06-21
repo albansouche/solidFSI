@@ -1,5 +1,8 @@
+documents/
+results/
+.idea/
 *__pycache__*
 *.pvd
 *.vtu
 *.DS_Store
-
+*.h5

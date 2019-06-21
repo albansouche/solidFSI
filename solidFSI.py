@@ -109,12 +109,12 @@ while t < setup.T:
     print("\n Solving for timestep %g" % t)
     t += setup.dt
     try:
-        setup.p_time_exp.t = t  # FIXME : Need improvement, update time in boundary conditions expression
+        setup.p_exp.t = t  # FIXME : Need improvement, update time in boundary conditions expression
     except:
         pass
 
     # TODO: Make a pressure expression instead of using scalar*t
-    T.vector()[:] = assemble(inner(Constant(1E4*t)*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
+    T.vector()[:] = assemble(inner(setup.p_exp*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
     T.vector()[:] = - np.divide(T.vector().get_local(), Tn.vector().get_local())
     TT = project(T, D)
     tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
