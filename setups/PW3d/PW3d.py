@@ -71,7 +71,7 @@ class Setup(Setup_base):
     def get_parent_mesh(self):
 
         # read mesh from mesh file
-        self.parent_mesh = Mesh(self.mesh_folder + "/cyl10x2cm_better.xml")
+        self.parent_mesh = Mesh(self.mesh_folder + "/mesh11.xml")#""/cyl10x2cm_better.xml")
         mesh = refine(self.parent_mesh)
 
         # read domains and boundaries from mesh file
@@ -104,6 +104,7 @@ class Setup(Setup_base):
     def setup_Dirichlet_BCs(self):
 
         noslip = Constant((0.0, 0.0, 0.0))
+        #noslip = Constant(0.0)
         freeslip = Constant(0.0)
 
         # Fluid velocity BCs
