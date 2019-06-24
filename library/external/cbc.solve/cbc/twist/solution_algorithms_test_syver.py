@@ -185,7 +185,6 @@ class MomentumBalanceSolver(CBCSolver):
         bcu = create_dirichlet_conditions(dirichlet_values,
                                           problem.dirichlet_boundaries(),
                                           dirichlet_function_spaces)
-        #                                 vector.sub(1))
 
         # Define fields
         # Test and trial functions

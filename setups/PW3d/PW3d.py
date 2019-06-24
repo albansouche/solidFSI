@@ -13,19 +13,37 @@ from IPython import embed  # for debugging
 from mshr import *
 
 
-"""
+
 class Pexp(Expression):
 
-   def __init__(self, t, pmax, **kwargs):
+   def __init__(self, p_max, f, L, t, **kwargs):
+       self.p_max = p_max
+       self.f = f
+       self.L = L
        self.t = t
-       self.pmax = pmax
 
    def eval(self, value, x):
-        value = self.pmax*sin(self.t)#*sin(x[1])
+        value[0] = 0.5*self.p_max*self.t*(1.0+sin(2.0*pi*self.f*self.t))*(1.0-(x[1]+0.5*self.L)/self.L)
 
    def value_shape(self):
        return (1,)
-"""
+
+
+class P_wave_exp(Expression):
+
+   def __init__(self, p_max, L, velocity, width, t, **kwargs):
+       self.p_max = p_max
+       self.L = L
+       self.a = velocity
+       self.s = width
+       self.t = t
+
+   def eval(self, value, x):
+        #value[0] = self.p_max*(abs(x[1]+0.5*self.L+4.0*self.s-self.a*self.t)<self.s)
+        value[0] = self.p_max*exp(-0.5*pow((x[1]+0.5*self.L+4.0*self.s-self.a*self.t)/self.s, 2.0))
+
+   def value_shape(self):
+       return (1,)
 
 
 class Setup(Setup_base):
@@ -39,18 +57,21 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 10  # End time s.
+        self.T = 14  # End time s.
         self.dt = 0.1  # Time step s.
 
         # TODO: Pressure inlet expression
         # Pressure
-        self.p_in_max = 1.0E+4  # Max inlet pressure Pa
-        #self.p_exp = Pexp(t_0, self.p_in_max)
+        self.p_in_max = 10.0E+4  # Max inlet pressure Pa
+        f = 0.025
+        L = 0.1
+        a = 0.01
+        sigma = 0.005
+        t = 0.0
         self.t_ramp = 0.1  # s.
-        #self.p_exp = Expression('0.5*p_max*t*(1.0+sin(2.0*pi*f*t))',
-        #                        p_max=self.p_in_max, f=0.025, t=0.0, degree=1)
-        self.p_exp = Expression('0.5*p_max*t*(1.0+sin(2.0*pi*f*t))*(1-0.1*(x[1]+0.05)/L)',
-                                p_max=self.p_in_max, f=0.1, L=0.025, t=0.0, degree=1)
+        #self.p_exp = Pexp(self.p_in_max, f, L, t, degree=2)
+        self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=2)
+        #self.p_exp = Expression('0.5*p_max*t*(1.0+sin(2.0*pi*f*t))*(1.0-0.1*(x[1]+0.05)/L)', p_max=self.p_in_max, f=F, L=L, t=t, degree=2) # (faster)
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
@@ -74,11 +95,13 @@ class Setup(Setup_base):
         self.fsi_id = 21  # IMPORTANT VARIABLE value of the FSI facet id in the parent mesh file
         self.inlet_id = 1  # fluid inlet id
         self.outlet_id = 2  # fluid outlet id
+        self.inlet_s_fixed_id = 9 # solid inlet fixed triangle id (one single triangle attached)
         self.inlet_s_id = 10  # solid inlet id
         self.outlet_s_id = 11  # solid outlet id
 
         # Material constitutive law
-        self.solid_solver_model = "LinearElastic"  # "LinearElastic" or "StVenantKirchhoff"
+        # "LinearElastic", "StVenantKirchhoff", "MooneyRivlin", "neoHookean", "Isihara", "Biderman", "GentThomas" or "Ogden"
+        self.solid_solver_model = "LinearElastic"
 
         # solvers
         self.solid_solver_scheme = "HHT"  # "CG1" or "HHT"
@@ -95,7 +118,7 @@ class Setup(Setup_base):
     def get_parent_mesh(self):
 
         # read mesh from mesh file
-        self.parent_mesh = Mesh(self.mesh_folder + "/mesh11.xml")#""/cyl10x2cm_better.xml")
+        self.parent_mesh = Mesh(self.mesh_folder + "/mesh9.xml")#""/cyl10x2cm_better.xml")
         #self.parent_mesh = refine(self.parent_mesh)
 
         # read domains and boundaries from mesh file
@@ -128,7 +151,6 @@ class Setup(Setup_base):
     def setup_Dirichlet_BCs(self):
 
         noslip = Constant((0.0, 0.0, 0.0))
-        #noslip = Constant(0.0)
         freeslip = Constant(0.0)
 
         # Fluid velocity BCs
@@ -138,10 +160,10 @@ class Setup(Setup_base):
         # Mesh problem bcs
 
         # Dirichlet conditions for the solid problem
-        self.bcs_s_vals = [noslip, freeslip]
-        self.bcs_s_ids = [self.inlet_s_id, self.outlet_s_id]
+        self.bcs_s_vals = [noslip, freeslip, freeslip]
+        self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
 
-        self.bcs_s_fct_sps = ['vector', 'y']
+        self.bcs_s_fct_sps = ['vector', 'y', 'y']
 
         return
 
