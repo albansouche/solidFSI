@@ -59,6 +59,9 @@ Nd = TestFunction(D)
 d_ = Function(D)  # sol disp. at t = n
 tract_S = Function(D)  # solid traction
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
+scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+SCALAR = FunctionSpace(subM.mesh_s, scalar)
+epseps = Function(SCALAR)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -83,6 +86,10 @@ sol_d_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_def.xdmf")
 sol_d_file.parameters["flush_output"] = True
 sol_d_file.parameters["rewrite_function_mesh"] = False
 sol_d_file.parameters["functions_share_mesh"] = True
+sol_eps_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_strain.xdmf")
+sol_eps_file.parameters["flush_output"] = True
+sol_eps_file.parameters["rewrite_function_mesh"] = False
+sol_eps_file.parameters["functions_share_mesh"] = True
 ################################################################################
 
 # Traction vector as Neumann bds
@@ -109,11 +116,14 @@ while t < setup.T:
     print("\n Solving for timestep %g" % t)
     t += setup.dt
     try:
-        setup.p_exp.t = t  # FIXME : Need improvement, update time in boundary conditions expression
+        setup.p_exp.t = t
     except:
         pass
 
-    T.vector()[:] = assemble(inner(setup.p_exp[0]*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
+    if setup.p_exp.value_shape() == (1,):
+        T.vector()[:] = assemble(inner(setup.p_exp[0]*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
+    else:
+        T.vector()[:] = assemble(inner(setup.p_exp*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
     T.vector()[:] = - np.divide(T.vector().get_local(), Tn.vector().get_local())
     TT = project(T, D)
     tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
@@ -124,9 +134,19 @@ while t < setup.T:
     elif setup.solid_solver_scheme == 'CG1':
         assign(d_, _struct.step(setup.dt)[0])  # pass displacements / not velocities
 
+    # Find strain
+    if setup.solid_solver_model == "LinearElastic":
+        eps = InfinitesimalStrain(d_)
+    else:
+        eps = GreenLagrangeStrain(d_)
+    ex = Constant((1,0,0))
+    #epsxx = dot(dot(eps, ex), ex)
+    assign(epseps, project(dot(dot(eps, ex), ex), SCALAR))
+
     # save data -------------------------------
     if counter % setup.save_step == 0:
         sol_d_file.write(d_, t)
+        sol_eps_file.write(epseps, t)
 
     # update solution vectors -----------------
     _struct.update()

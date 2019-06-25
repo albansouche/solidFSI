@@ -14,7 +14,7 @@ from mshr import *
 
 
 
-class Pexp(Expression):
+class P_exp(Expression):
 
    def __init__(self, p_max, f, L, t, **kwargs):
        self.p_max = p_max
@@ -23,7 +23,7 @@ class Pexp(Expression):
        self.t = t
 
    def eval(self, value, x):
-        value[0] = 0.5*self.p_max*self.t*(1.0+sin(2.0*pi*self.f*self.t))*(1.0-(x[1]+0.5*self.L)/self.L)
+        value[0] = 0.5*self.p_max*self.t*(1.0+sin(2.0*pi*self.f*self.t))*(1.0-0.1*(x[1]+0.5*self.L)/self.L)
 
    def value_shape(self):
        return (1,)
@@ -57,7 +57,7 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 14  # End time s.
+        self.T = 5  # End time s.
         self.dt = 0.1  # Time step s.
 
         # TODO: Pressure inlet expression
@@ -69,9 +69,11 @@ class Setup(Setup_base):
         sigma = 0.005
         t = 0.0
         self.t_ramp = 0.1  # s.
-        #self.p_exp = Pexp(self.p_in_max, f, L, t, degree=2)
+        #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
         self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=2)
-        #self.p_exp = Expression('0.5*p_max*t*(1.0+sin(2.0*pi*f*t))*(1.0-0.1*(x[1]+0.05)/L)', p_max=self.p_in_max, f=F, L=L, t=t, degree=2) # (faster)
+        #self.p_exp = Expression(
+        #    '0.5*p_max*t*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
+        #    p_max=self.p_in_max, f=f, L=L, t=t, degree=2) # (faster)
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
