@@ -57,7 +57,7 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 5  # End time s.
+        self.T = 14  # End time s.
         self.dt = 0.1  # Time step s.
 
         # TODO: Pressure inlet expression

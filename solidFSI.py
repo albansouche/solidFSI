@@ -59,9 +59,10 @@ Nd = TestFunction(D)
 d_ = Function(D)  # sol disp. at t = n
 tract_S = Function(D)  # solid traction
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
-scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
-SCALAR = FunctionSpace(subM.mesh_s, scalar)
-epseps = Function(SCALAR)
+d_scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
+epsij = Function(D_scalar)
+treps = Function(D_scalar)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -139,14 +140,13 @@ while t < setup.T:
         eps = InfinitesimalStrain(d_)
     else:
         eps = GreenLagrangeStrain(d_)
-    ex = Constant((1,0,0))
-    #epsxx = dot(dot(eps, ex), ex)
-    assign(epseps, project(dot(dot(eps, ex), ex), SCALAR))
+    #assign(epsij, project(eps[0,0], D_scalar))
+    assign(treps, project(tr(eps), D_scalar))
 
     # save data -------------------------------
     if counter % setup.save_step == 0:
         sol_d_file.write(d_, t)
-        sol_eps_file.write(epseps, t)
+        sol_eps_file.write(treps, t)
 
     # update solution vectors -----------------
     _struct.update()
