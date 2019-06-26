@@ -61,8 +61,8 @@ tract_S = Function(D)  # solid traction
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
 d_scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
-d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
-D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
+#d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+#D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
 epsij = Function(D_scalar)
 treps = Function(D_scalar)
 sigij = Function(D_scalar)
@@ -114,11 +114,15 @@ Tn.vector()[:] = Tnvec
 t = 0.0
 counter = 1
 tic = tm.clock()
+assign(d_, project(Constant((0.0,0.0,0.0)), D))
+assign(treps, project(Constant(0.0), D_scalar))
+sol_d_file.write(d_, t)
+sol_eps_file.write(treps, t)
 print("ENTERING TIME LOOP")
 while t < setup.T:
 
     # time update
-    print("\n Solving for timestep %g" % t)
+    print("Solving for timestep %g of %g   " % (t, setup.T), end='\r')
     t += setup.dt
     try:
         setup.p_exp.t = t
@@ -146,8 +150,9 @@ while t < setup.T:
         eps = _struct.material.E  # Green-Lagrange strain
 
     # Stresses
-    #sig = _struct.material.SecondPiolaKirchhoffStress(d_)
+    sig = _struct.material.SecondPiolaKirchhoffStress(d_)
 
+    # Compute scalar characteristic for exportation
     assign(treps, project(tr(eps), D_scalar))
     #assign(trsig, project(tr(sig), D_scalar))
     #assign(epsij, project(eps[2, 2], D_scalar))

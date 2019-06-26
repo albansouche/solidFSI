@@ -57,12 +57,12 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 10  # End time s.
+        self.T = 14  # End time s.
         self.dt = 0.1  # Time step s.
 
         # TODO: Pressure inlet expression
         # Pressure
-        self.p_in_max = 1.0E+4  # Max inlet pressure Pa
+        self.p_in_max = 10.0E+4  # Max inlet pressure Pa
         f = 0.025
         L = 0.1
         a = 0.01
@@ -71,10 +71,10 @@ class Setup(Setup_base):
         self.t_ramp = 0.1  # s.
         #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
         #self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=1)
-        #self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))',
-        #                        p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
-        self.p_exp = Expression('p_max*t',#*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
-                                p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
+        self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))',
+                                p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
+        #self.p_exp = Expression('p_max*t',#*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
+        #                        p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
@@ -91,7 +91,7 @@ class Setup(Setup_base):
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!
         self.mesh_folder = "setups/PW3d/mesh"
-        self.mesh_split = True  # spliting the mesh True or False. Submesh are systematically saved in the folder
+        self.mesh_split = False  # spliting the mesh True or False. Submesh are systematically saved in the folder
         self.parent_mesh = []  # if parent mesh provided by a xml or xml.gz file
         self.dom_f_id = 1  # value of the cell id for the fluid domain in the parent mesh file
         self.dom_s_id = 2  # value of the cell id for the solid domain in the parent mesh file

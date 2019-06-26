@@ -59,12 +59,13 @@ Nd = TestFunction(D)
 d_ = Function(D)  # sol disp. at t = n
 tract_S = Function(D)  # solid traction
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
-d_scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+d_scalar = FiniteElement('DG', subM.mesh_s.ufl_cell(), setup.d_deg-1)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
-d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
-D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
+#d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+#D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
 epsij = Function(D_scalar)
 treps = Function(D_scalar)
+sigij = Function(D_scalar)
 trsig = Function(D_scalar)
 
 # DOFS mapping #################################################################
@@ -78,22 +79,6 @@ setup.setup_Dirichlet_BCs()
 # Solid solver, based on cbc.twist #############################################
 print("Prepare structure solver")
 _struct = StructureSolver(setup, subM, tract_S)
-
-# Initialization of data file ##################################################
-print("Prepare output files")
-if 0:#MPI.rank(mpi_comm_world()) == 0:
-    if os.path.isdir(setup.save_path):
-        shutil.rmtree(setup.save_path)
-    os.makedirs(setup.save_path)
-MPI.barrier(mpi_comm_world())
-sol_d_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_def.xdmf")
-sol_d_file.parameters["flush_output"] = True
-sol_d_file.parameters["rewrite_function_mesh"] = False
-sol_d_file.parameters["functions_share_mesh"] = True
-sol_eps_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_strain.xdmf")
-sol_eps_file.parameters["flush_output"] = True
-sol_eps_file.parameters["rewrite_function_mesh"] = False
-sol_eps_file.parameters["functions_share_mesh"] = True
 ################################################################################
 
 # Traction vector as Neumann bds
@@ -110,8 +95,8 @@ np.place(Tnvec, Tnvec < 1e-9, 1.0)
 Tn.vector()[:] = Tnvec
 
 # Numpy array for saving stress-strain
-eps_array = []
-sig_array = []
+eps_array = [0.0]
+sig_array = [0.0]
 point = (0.011, 0.0, 0.0)
 
 # TIME LOOP START ##############################################################
@@ -124,10 +109,7 @@ while t < setup.T:
     # time update
     print("\n Solving for timestep %g" % t)
     t += setup.dt
-    try:
-        setup.p_exp.t = t
-    except:
-        pass
+    setup.p_exp.t = t
 
     if setup.p_exp.value_shape() == (1,):
         T.vector()[:] = assemble(inner(setup.p_exp[0]*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
@@ -147,12 +129,6 @@ while t < setup.T:
     _struct.material._construct_local_kinematics
 
     # Find strain
-    """
-    if setup.solid_solver_model == "LinearElastic":
-        eps = _struct.material.epsilon  # Infinitesimal strain
-    else:
-        eps = _struct.material.E  # Green-Lagrange strain
-    """
     eps = _struct.material.epsilon
     #eps = _struct.material.E
 
@@ -162,19 +138,12 @@ while t < setup.T:
     #assign(epsij, project(eps[0,0], D_scalar))
     #assign(treps, project(tr(eps), D_scalar))
     #assign(trsig, project(tr(sig), D_scalar))
-    assign(treps, project(eps[2, 2], D_scalar))
-    assign(trsig, project(sig[2, 2], D_scalar))
+    assign(epsij, project(eps[2, 2], D_scalar))
+    assign(sigij, project(sig[2, 2], D_scalar))
 
     # Store stress-strain
-    eps_array += [treps(point)]
-    sig_array += [trsig(point)]
-
-    # save data -------------------------------
-    if counter % setup.save_step == 0:
-        pass
-        #sol_d_file.write(d_, t)
-        #sol_eps_file.write(treps, t)
-
+    eps_array += [epsij(point)]
+    sig_array += [sigij(point)]
 
     # update solution vectors -----------------
     _struct.update()
