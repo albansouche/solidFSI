@@ -65,7 +65,6 @@ d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
 epsij = Function(D_scalar)
 treps = Function(D_scalar)
-sigij = Function(D_scalar)
 trsig = Function(D_scalar)
 
 # DOFS mapping #################################################################
@@ -82,7 +81,7 @@ _struct = StructureSolver(setup, subM, tract_S)
 
 # Initialization of data file ##################################################
 print("Prepare output files")
-if MPI.rank(mpi_comm_world()) == 0:
+if 0:#MPI.rank(mpi_comm_world()) == 0:
     if os.path.isdir(setup.save_path):
         shutil.rmtree(setup.save_path)
     os.makedirs(setup.save_path)
@@ -109,6 +108,11 @@ Tn.vector()[:] = assemble(inner(Constant((1., 1., 1.)), Nd1) * ds_s(subdomain_id
 Tnvec = Tn.vector().get_local()
 np.place(Tnvec, Tnvec < 1e-9, 1.0)
 Tn.vector()[:] = Tnvec
+
+# Numpy array for saving stress-strain
+eps_array = []
+sig_array = []
+point = (0.011, 0.0, 0.0)
 
 # TIME LOOP START ##############################################################
 t = 0.0
@@ -139,24 +143,37 @@ while t < setup.T:
     elif setup.solid_solver_scheme == 'CG1':
         assign(d_, _struct.step(setup.dt)[0])  # pass displacements / not velocities
 
+    # Update local kinematics
+    _struct.material._construct_local_kinematics
+
     # Find strain
+    """
     if setup.solid_solver_model == "LinearElastic":
         eps = _struct.material.epsilon  # Infinitesimal strain
     else:
         eps = _struct.material.E  # Green-Lagrange strain
+    """
+    eps = _struct.material.epsilon
+    #eps = _struct.material.E
 
     # Stresses
-    #sig = _struct.material.SecondPiolaKirchhoffStress(d_)
+    sig = _struct.material.SecondPiolaKirchhoffStress(d_)
 
-    assign(treps, project(tr(eps), D_scalar))
+    #assign(epsij, project(eps[0,0], D_scalar))
+    #assign(treps, project(tr(eps), D_scalar))
     #assign(trsig, project(tr(sig), D_scalar))
-    #assign(epsij, project(eps[2, 2], D_scalar))
-    #assign(sigij, project(sig[2, 2], D_scalar))
+    assign(treps, project(eps[2, 2], D_scalar))
+    assign(trsig, project(sig[2, 2], D_scalar))
+
+    # Store stress-strain
+    eps_array += [treps(point)]
+    sig_array += [trsig(point)]
 
     # save data -------------------------------
     if counter % setup.save_step == 0:
-        sol_d_file.write(d_, t)
-        sol_eps_file.write(treps, t)
+        pass
+        #sol_d_file.write(d_, t)
+        #sol_eps_file.write(treps, t)
 
 
     # update solution vectors -----------------
@@ -165,3 +182,11 @@ while t < setup.T:
     # update time loop counter
     counter += 1
 ################################################################################
+
+# Save stress-strain relation to file
+if setup.solid_solver_model == 'LinearElastic':
+    np.savetxt(setup.save_path+'/LinearElastic.out', (eps_array, sig_array))
+elif setup.solid_solver_model == 'StVenantKirchhoff':
+    np.savetxt(setup.save_path+'/StVenantKirchhoff.out', (eps_array, sig_array))
+elif setup.solid_solver_model == 'neoHookean':
+    np.savetxt(setup.save_path+'/neoHookean.out', (eps_array, sig_array))
