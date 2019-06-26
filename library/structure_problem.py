@@ -35,6 +35,7 @@ class StructureSolver(Hyperelasticity):
         elif setup.solid_solver_model == 'MooneyRivlin':
             self.material = MooneyRivlin([self.C1, self.C2])
         elif setup.solid_solver_model == 'neoHookean':
+            self.half_nkT = self.mu_s/2
             self.material = neoHookean([self.half_nkT])
         elif setup.solid_solver_model == 'Isihara':
             self.material = Isihara([self.C10, self.C01, self.C20])

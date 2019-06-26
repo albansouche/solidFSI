@@ -57,12 +57,12 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 14  # End time s.
+        self.T = 10  # End time s.
         self.dt = 0.1  # Time step s.
 
         # TODO: Pressure inlet expression
         # Pressure
-        self.p_in_max = 10.0E+4  # Max inlet pressure Pa
+        self.p_in_max = 1.0E+4  # Max inlet pressure Pa
         f = 0.025
         L = 0.1
         a = 0.01
@@ -70,10 +70,11 @@ class Setup(Setup_base):
         t = 0.0
         self.t_ramp = 0.1  # s.
         #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
-        self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=2)
-        #self.p_exp = Expression(
-        #    '0.5*p_max*t*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
-        #    p_max=self.p_in_max, f=f, L=L, t=t, degree=2) # (faster)
+        #self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=1)
+        #self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))',
+        #                        p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
+        self.p_exp = Expression('p_max*t',#*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
+                                p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
@@ -102,7 +103,8 @@ class Setup(Setup_base):
         self.outlet_s_id = 11  # solid outlet id
 
         # Material constitutive law
-        # "LinearElastic", "StVenantKirchhoff", "MooneyRivlin", "neoHookean", "Isihara", "Biderman", "GentThomas" or "Ogden"
+        # "LinearElastic" or "StVenantKirchhoff"
+        # WARNING: "MooneyRivlin", "neoHookean", "Isihara", "Biderman", "GentThomas" or "Ogden"
         self.solid_solver_model = "LinearElastic"
 
         # solvers
