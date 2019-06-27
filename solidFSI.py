@@ -63,10 +63,12 @@ d_scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 #d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 #D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
-epsij = Function(D_scalar)
-treps = Function(D_scalar)
-sigij = Function(D_scalar)
-trsig = Function(D_scalar)
+
+#epsij = Function(D_scalar)
+#treps = Function(D_scalar)
+#sigij = Function(D_scalar)
+#trsig = Function(D_scalar)
+sigvm = Function(D_scalar)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -115,19 +117,17 @@ t = 0.0
 counter = 1
 tic = tm.clock()
 assign(d_, project(Constant((0.0,0.0,0.0)), D))
-assign(treps, project(Constant(0.0), D_scalar))
+assign(sigvm, project(Constant(0.0), D_scalar))
 sol_d_file.write(d_, t)
-sol_eps_file.write(treps, t)
+sol_eps_file.write(sigvm, t)
 print("ENTERING TIME LOOP")
 while t < setup.T:
 
     # time update
     print("Solving for timestep %g of %g   " % (t, setup.T), end='\r')
+    #print("\n Solving for timestep %g" % t)
     t += setup.dt
-    try:
-        setup.p_exp.t = t
-    except:
-        pass
+    setup.p_exp.t = t
 
     if setup.p_exp.value_shape() == (1,):
         T.vector()[:] = assemble(inner(setup.p_exp[0]*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
@@ -143,25 +143,23 @@ while t < setup.T:
     elif setup.solid_solver_scheme == 'CG1':
         assign(d_, _struct.step(setup.dt)[0])  # pass displacements / not velocities
 
-    # Find strain
-    if setup.solid_solver_model == "LinearElastic":
-        eps = _struct.material.epsilon  # Infinitesimal strain
-    else:
-        eps = _struct.material.E  # Green-Lagrange strain
-
-    # Stresses
-    sig = _struct.material.SecondPiolaKirchhoffStress(d_)
-
-    # Compute scalar characteristic for exportation
-    assign(treps, project(tr(eps), D_scalar))
-    #assign(trsig, project(tr(sig), D_scalar))
-    #assign(epsij, project(eps[2, 2], D_scalar))
-    #assign(sigij, project(sig[2, 2], D_scalar))
-
     # save data -------------------------------
     if counter % setup.save_step == 0:
+
+        # Find strain
+        #eps = InfinitesimalStrain(d_)  # Infinitesimal strain
+
+        # Stresses
+        sig = _struct.material.SecondPiolaKirchhoffStress(d_)
+
+        # Compute scalar characteristic for exportation
+        #assign(treps, project(tr(eps), D_scalar))
+        #assign(trsig, project(tr(sig), D_scalar))
+        #assign(epsij, project(eps[2, 2], D_scalar))
+        #assign(sigij, project(sig[2, 2], D_scalar))
+        assign(sigvm, project(vonMises(sig), D_scalar))
         sol_d_file.write(d_, t)
-        sol_eps_file.write(treps, t)
+        sol_eps_file.write(sigvm, t)
 
 
     # update solution vectors -----------------

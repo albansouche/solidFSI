@@ -57,24 +57,24 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 14  # End time s.
-        self.dt = 0.1  # Time step s.
+        self.T = 1.0  # End time s.
+        self.dt = 0.05  # Time step s.
 
-        # TODO: Pressure inlet expression
         # Pressure
-        self.p_in_max = 10.0E+4  # Max inlet pressure Pa
+        self.p_in_max = 5.0E+4  # Max inlet pressure Pa
         f = 0.025
         L = 0.1
         a = 0.01
-        sigma = 0.005
+        sigma = 0.003
         t = 0.0
-        self.t_ramp = 0.1  # s.
+        #self.t_ramp = 0.1  # s.
         #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
         #self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=1)
-        self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))',
-                                p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
-        #self.p_exp = Expression('p_max*t',#*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
+        #self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))',
+        #                        p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
+        #self.p_exp = Expression('p_max*t*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
         #                        p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
+        self.p_exp = Expression('p_max*t', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
@@ -86,29 +86,29 @@ class Setup(Setup_base):
         self.CBCsolve_path = "library/external/cbc.solve"
 
         # saving data
-        self.save_path = "results/PW3d"
+        self.save_path = "results/law"
+        #self.save_path = "results/law"
         self.save_step = 1  # saving solution every "n" steps
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!
         self.mesh_folder = "setups/PW3d/mesh"
-        self.mesh_split = False  # spliting the mesh True or False. Submesh are systematically saved in the folder
+        self.mesh_split = True  # spliting the mesh True or False. Submesh are systematically saved in the folder
         self.parent_mesh = []  # if parent mesh provided by a xml or xml.gz file
         self.dom_f_id = 1  # value of the cell id for the fluid domain in the parent mesh file
         self.dom_s_id = 2  # value of the cell id for the solid domain in the parent mesh file
         self.fsi_id = 21  # IMPORTANT VARIABLE value of the FSI facet id in the parent mesh file
         self.inlet_id = 1  # fluid inlet id
         self.outlet_id = 2  # fluid outlet id
-        self.inlet_s_fixed_id = 9 # solid inlet fixed triangle id (one single triangle attached)
+        self.inlet_s_fixed_id = 9 # solid inlet fixed facet id (one single facet attached)
         self.inlet_s_id = 10  # solid inlet id
         self.outlet_s_id = 11  # solid outlet id
 
         # Material constitutive law
-        # "LinearElastic" or "StVenantKirchhoff"
-        # WARNING: "MooneyRivlin", "neoHookean", "Isihara", "Biderman", "GentThomas" or "Ogden"
+        # "LinearElastic" or "StVenantKirchhoff", "MooneyRivlin", "neoHookean", "Isihara", "Biderman", "GentThomas" or "Ogden"
         self.solid_solver_model = "LinearElastic"
 
         # solvers
-        self.solid_solver_scheme = "HHT"  # "CG1" or "HHT"
+        self.solid_solver_scheme = "CG1"  # "CG1" or "HHT"
 
         # set compiler arguments
         parameters["form_compiler"]["quadrature_degree"] = 6
@@ -122,7 +122,7 @@ class Setup(Setup_base):
     def get_parent_mesh(self):
 
         # read mesh from mesh file
-        self.parent_mesh = Mesh(self.mesh_folder + "/mesh9.xml")#""/cyl10x2cm_better.xml")
+        self.parent_mesh = Mesh(self.mesh_folder + "/mesh_double.xml")
         #self.parent_mesh = refine(self.parent_mesh)
 
         # read domains and boundaries from mesh file
@@ -135,11 +135,11 @@ class Setup(Setup_base):
             dic = (i, val)
             self.parent_mesh.domains().set_marker(dic, 3)
 
-        toto = File('toto.pvd')
-        toto << self.parent_mesh
-        toto << self.parent_domains
+        #toto = File('toto.pvd')
+        #toto << self.parent_mesh
+        #toto << self.parent_domains
         self.parent_bds = MeshFunction("size_t", self.parent_mesh, 2, self.parent_mesh.domains())
-        toto << self.parent_bds
+        #toto << self.parent_bds
 
 
         return

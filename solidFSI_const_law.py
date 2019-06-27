@@ -67,6 +67,8 @@ epsij = Function(D_scalar)
 treps = Function(D_scalar)
 sigij = Function(D_scalar)
 trsig = Function(D_scalar)
+norm_d_ = Function(D_scalar)
+vmstress = Function(D_scalar)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -107,7 +109,8 @@ print("ENTERING TIME LOOP")
 while t < setup.T:
 
     # time update
-    print("\n Solving for timestep %g" % t)
+    print("Solving for timestep %g of %g   " % (t, setup.T), end='\r')
+    #print("\n Solving for timestep %g" % t)
     t += setup.dt
     setup.p_exp.t = t
 
@@ -125,25 +128,28 @@ while t < setup.T:
     elif setup.solid_solver_scheme == 'CG1':
         assign(d_, _struct.step(setup.dt)[0])  # pass displacements / not velocities
 
-    # Update local kinematics
-    _struct.material._construct_local_kinematics
+    # save data -------------------------------
+    if counter % setup.save_step == 0:
 
-    # Find strain
-    eps = _struct.material.epsilon
-    #eps = _struct.material.E
+        # Stresses
+        sig = _struct.material.SecondPiolaKirchhoffStress(d_)
 
-    # Stresses
-    sig = _struct.material.SecondPiolaKirchhoffStress(d_)
+        # Strain
+        #eps = _struct.material.epsilon
+        #eps = _struct.material.E
 
-    #assign(epsij, project(eps[0,0], D_scalar))
-    #assign(treps, project(tr(eps), D_scalar))
-    #assign(trsig, project(tr(sig), D_scalar))
-    assign(epsij, project(eps[2, 2], D_scalar))
-    assign(sigij, project(sig[2, 2], D_scalar))
+        #assign(treps, project(tr(eps), D_scalar))
+        #assign(trsig, project(tr(sig), D_scalar))
+        #assign(epsij, project(eps[2, 2], D_scalar))
+        assign(sigij, project(sig[2, 2], D_scalar))
+        #assign(vmstress, project(vonMises(sig), D_scalar))
+        vec = d_(point)
+        norm_d_ = np.sqrt(np.sum(vec*vec))
 
-    # Store stress-strain
-    eps_array += [epsij(point)]
-    sig_array += [sigij(point)]
+
+        # Store stress-strain
+        eps_array += [norm_d_]
+        sig_array += [sigij(point)]
 
     # update solution vectors -----------------
     _struct.update()

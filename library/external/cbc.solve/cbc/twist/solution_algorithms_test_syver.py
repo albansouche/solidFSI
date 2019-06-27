@@ -474,16 +474,11 @@ class CG1MomentumBalanceSolver(CBCSolver):
             v0.vector()[:] = _v0[:]
 
         # Create boundary conditions
-        ####### problem: Hyperelasticity ########################
-        ####### dirichlet_values: [Constant((0.0, 0.0, 0.0))] ###
-        ####### dirichlet_boundaries: [10] (?) ##################
-        ####### mixed_element_sub(0): Deformation (vector) ######
         dirichlet_values = problem.dirichlet_values()
         dirichlet_function_spaces = Make_D_function_spaces(mixed_element.sub(0), problem.dirichlet_function_spaces())
         bcu = create_dirichlet_conditions(dirichlet_values,
                                           problem.dirichlet_boundaries(),
                                           dirichlet_function_spaces)
-        #                                 mixed_element.sub(0).sub(1))
 
         # Functions
         xi, eta = split(V)

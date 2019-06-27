@@ -161,3 +161,8 @@ def InversePiolaTransform(A, u):
     F = DeformationGradient(u)
     B = (1/J)*A*F.T
     return B
+
+
+def vonMises(sigma):
+    s = sigma - 1.0/3.0*tr(sigma)*Identity(3)
+    return sqrt(3.0/2.0*inner(s, s))

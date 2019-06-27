@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-tree = ET.parse('setups/PW3d/mesh/mesh.xml')
+tree = ET.parse('mesh.xml')
 root = tree.getroot()
 
 mesh = root[0]
@@ -17,4 +17,4 @@ for value in mesh_value_collection_2:
         if float(vertices[v0].get('y')) > 0:
             value.set('value', '11')
 
-tree.write('mesh11.xml')
+tree.write('mesh_double.xml')

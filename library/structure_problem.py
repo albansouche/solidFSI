@@ -33,15 +33,26 @@ class StructureSolver(Hyperelasticity):
         elif setup.solid_solver_model == 'StVenantKirchhoff':
             self.material = StVenantKirchhoff([self.mu_s, self.lmbda])
         elif setup.solid_solver_model == 'MooneyRivlin':
+            self.C1 = self.mu_s/2
+            self.C2 = self.mu_s/2
             self.material = MooneyRivlin([self.C1, self.C2])
         elif setup.solid_solver_model == 'neoHookean':
             self.half_nkT = self.mu_s/2
             self.material = neoHookean([self.half_nkT])
         elif setup.solid_solver_model == 'Isihara':
+            self.C10 = self.mu_s/2
+            self.C01 = self.mu_s/2
+            self.C20 = self.mu_s/2
             self.material = Isihara([self.C10, self.C01, self.C20])
         elif setup.solid_solver_model == 'Biderman':
+            self.C10 = self.mu_s/2
+            self.C01 = self.mu_s/2
+            self.C20 = self.mu_s/2
+            self.C30 = self.mu_s/2
             self.material = Biderman([self.C10, self.C01, self.C20, self.C30])
         elif setup.solid_solver_model == 'GentThomas':
+            self.C1 = self.mu_s/2
+            self.C2 = self.mu_s/2
             self.material = GentThomas([self.C1, self.C2])
         elif setup.solid_solver_model == 'Ogden':
             self.material = Ogden([self.alpha1, self.alpha2, self.alpha3, self.mu1, self.mu2, self.mu3])
