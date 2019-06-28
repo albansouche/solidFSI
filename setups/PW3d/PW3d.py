@@ -57,7 +57,7 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 1.5  # End time s.
+        self.T = 1  # End time s.
         self.dt = 0.1  # Time step s.
 
         # Pressure
@@ -70,9 +70,9 @@ class Setup(Setup_base):
         #self.t_ramp = 0.1  # s.
         #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
         #self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=1)
-        #self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))', p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
+        self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))', p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
         #self.p_exp = Expression('p_max*t*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
-        self.p_exp = Expression('p_max*t', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
+        #self.p_exp = Expression('p_max*t', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
@@ -84,8 +84,8 @@ class Setup(Setup_base):
         self.CBCsolve_path = "library/external/cbc.solve"
 
         # saving data
-        self.save_path = "results/law"
-        #self.save_path = "results/PW3d"
+        #self.save_path = "results/stress-strain"
+        self.save_path = "results/PW3d"
         self.save_step = 1  # saving solution every "n" steps
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!

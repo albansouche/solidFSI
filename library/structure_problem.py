@@ -55,6 +55,13 @@ class StructureSolver(Hyperelasticity):
             self.C2 = self.mu_s/2
             self.material = GentThomas([self.C1, self.C2])
         elif setup.solid_solver_model == 'Ogden':
+            # neoHookean
+            self.alpha1 = 2
+            self.alpha2 = 1
+            self.alpha3 = 1
+            self.mu1 = 2*self.mu_s
+            self.mu2 = 0
+            self.mu3 = 0
             self.material = Ogden([self.alpha1, self.alpha2, self.alpha3, self.mu1, self.mu2, self.mu3])
 
         self.d_deg = setup.d_deg

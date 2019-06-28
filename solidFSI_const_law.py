@@ -137,6 +137,7 @@ while t < setup.T:
         #assign(eps_scalar, project(tr(eps), D_scalar))
         assign(eps_scalar, project(eps[2, 2], D_scalar))
         #disp = d_(point); eps_scalar = np.sqrt(np.sum(disp*disp))
+        #assign(eps_scalar, project(PrincipalStretches(d_)[0], D_scalar))
 
         # Scalar stress-like variable to export
         assign(sig_scalar, project(tr(sig), D_scalar))

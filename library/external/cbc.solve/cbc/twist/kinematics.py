@@ -117,12 +117,14 @@ def IsochoricCauchyGreenInvariants(u):
 def PrincipalStretches(u):
     C = RightCauchyGreen(u)
     S = FunctionSpace(u.function_space().mesh(), "CG", 1)
-    if (u.cell().d == 2):
+    #if (u.cell().d == 2):
+    if (u.function_space().element().geometric_dimension() == 2):
         D = sqrt(tr(C)*tr(C) - 4.0*det(C))
         eig1 = sqrt(0.5*(tr(C) + D))
         eig2 = sqrt(0.5*(tr(C) - D))
         return [variable(eig1), variable(eig2)]
-    if (u.cell().d == 3):
+    #if (u.cell().d == 3):
+    if (u.function_space().element().geometric_dimension() == 3):
         c = (1.0/3.0)*tr(C)
         D = C - c*SecondOrderIdentity(u)
         q = (1.0/2.0)*det(D)
@@ -136,7 +138,6 @@ def PrincipalStretches(u):
             phi = (1.0/3.0)*atan(sqrt(p**3.0 - q**2.0)/q)
             if (phi < 0.0):
                 phi = phi + DOLFIN_PI/3.0
-            end
             eig1 = sqrt(c + 2*sqrt(p)*cos(phi))
             eig2 = sqrt(c - sqrt(p)*(cos(phi) + sqrt(3)*sin(phi)))
             eig3 = sqrt(c - sqrt(p)*(cos(phi) - sqrt(3)*sin(phi)))
