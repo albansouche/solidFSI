@@ -64,11 +64,7 @@ D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 #d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 #D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
 
-#epsij = Function(D_scalar)
-#treps = Function(D_scalar)
-#sigij = Function(D_scalar)
-#trsig = Function(D_scalar)
-sigvm = Function(D_scalar)
+scalar_characteristic = Function(D_scalar)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -97,6 +93,7 @@ sol_eps_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_strain.xdmf"
 sol_eps_file.parameters["flush_output"] = True
 sol_eps_file.parameters["rewrite_function_mesh"] = False
 sol_eps_file.parameters["functions_share_mesh"] = True
+
 ################################################################################
 
 # Traction vector as Neumann bds
@@ -112,14 +109,16 @@ Tnvec = Tn.vector().get_local()
 np.place(Tnvec, Tnvec < 1e-9, 1.0)
 Tn.vector()[:] = Tnvec
 
-# TIME LOOP START ##############################################################
+# Write first value, before first time step
 t = 0.0
 counter = 1
 tic = tm.clock()
 assign(d_, project(Constant((0.0,0.0,0.0)), D))
-assign(sigvm, project(Constant(0.0), D_scalar))
+assign(scalar_characteristic, project(Constant(0.0), D_scalar))
 sol_d_file.write(d_, t)
-sol_eps_file.write(sigvm, t)
+sol_eps_file.write(scalar_characteristic, t)
+
+# TIME LOOP START ##############################################################
 print("ENTERING TIME LOOP")
 while t < setup.T:
 
@@ -129,9 +128,9 @@ while t < setup.T:
     t += setup.dt
     setup.p_exp.t = t
 
-    if setup.p_exp.value_shape() == (1,):
+    if setup.p_exp.value_shape() == (1,):  # Python subclass of Dolfin Expression
         T.vector()[:] = assemble(inner(setup.p_exp[0]*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
-    else:
+    else:  # Direct Expression object
         T.vector()[:] = assemble(inner(setup.p_exp*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
     T.vector()[:] = - np.divide(T.vector().get_local(), Tn.vector().get_local())
     TT = project(T, D)
@@ -153,13 +152,14 @@ while t < setup.T:
         sig = _struct.material.SecondPiolaKirchhoffStress(d_)
 
         # Compute scalar characteristic for exportation
-        #assign(treps, project(tr(eps), D_scalar))
-        #assign(trsig, project(tr(sig), D_scalar))
-        #assign(epsij, project(eps[2, 2], D_scalar))
-        #assign(sigij, project(sig[2, 2], D_scalar))
-        assign(sigvm, project(vonMises(sig), D_scalar))
+        #assign(scalar_characteristic, project(tr(eps), D_scalar))  # tr(eps)
+        #assign(scalar_characteristic, project(eps[2, 2], D_scalar)) # eps_zz
+        #assign(scalar_characteristic, project(tr(sig), D_scalar))  # tr(sig)
+        #assign(scalar_characteristic, project(sig[2, 2], D_scalar))  # sig_zz
+        assign(scalar_characteristic, project(vonMises(sig), D_scalar))  # vonMises stress
+
         sol_d_file.write(d_, t)
-        sol_eps_file.write(sigvm, t)
+        sol_eps_file.write(scalar_characteristic, t)
 
 
     # update solution vectors -----------------

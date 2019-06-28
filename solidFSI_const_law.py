@@ -63,12 +63,8 @@ d_scalar = FiniteElement('DG', subM.mesh_s.ufl_cell(), setup.d_deg-1)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 #d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 #D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
-epsij = Function(D_scalar)
-treps = Function(D_scalar)
-sigij = Function(D_scalar)
-trsig = Function(D_scalar)
-norm_d_ = Function(D_scalar)
-vmstress = Function(D_scalar)
+eps_scalar = Function(D_scalar)
+sig_scalar = Function(D_scalar)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -131,25 +127,25 @@ while t < setup.T:
     # save data -------------------------------
     if counter % setup.save_step == 0:
 
-        # Stresses
+        # Stress
         sig = _struct.material.SecondPiolaKirchhoffStress(d_)
 
         # Strain
-        #eps = _struct.material.epsilon
-        #eps = _struct.material.E
+        eps = _struct.material.epsilon
 
-        #assign(treps, project(tr(eps), D_scalar))
-        #assign(trsig, project(tr(sig), D_scalar))
-        #assign(epsij, project(eps[2, 2], D_scalar))
-        assign(sigij, project(sig[2, 2], D_scalar))
-        #assign(vmstress, project(vonMises(sig), D_scalar))
-        vec = d_(point)
-        norm_d_ = np.sqrt(np.sum(vec*vec))
+        # Scalar strain-like variable to export
+        #assign(eps_scalar, project(tr(eps), D_scalar))
+        assign(eps_scalar, project(eps[2, 2], D_scalar))
+        #disp = d_(point); eps_scalar = np.sqrt(np.sum(disp*disp))
 
+        # Scalar stress-like variable to export
+        assign(sig_scalar, project(tr(sig), D_scalar))
+        #assign(sig_scalar, project(sig[2, 2], D_scalar))
+        #assign(sig_scalar, project(vonMises(sig), D_scalar))
 
         # Store stress-strain
-        eps_array += [norm_d_]
-        sig_array += [sigij(point)]
+        eps_array += [eps_scalar(point)]
+        sig_array += [sig_scalar(point)]
 
     # update solution vectors -----------------
     _struct.update()
@@ -159,9 +155,4 @@ while t < setup.T:
 ################################################################################
 
 # Save stress-strain relation to file
-if setup.solid_solver_model == 'LinearElastic':
-    np.savetxt(setup.save_path+'/LinearElastic.out', (eps_array, sig_array))
-elif setup.solid_solver_model == 'StVenantKirchhoff':
-    np.savetxt(setup.save_path+'/StVenantKirchhoff.out', (eps_array, sig_array))
-elif setup.solid_solver_model == 'neoHookean':
-    np.savetxt(setup.save_path+'/neoHookean.out', (eps_array, sig_array))
+np.savetxt(setup.save_path+'/'+setup.solid_solver_model+'.out', (eps_array, sig_array))
