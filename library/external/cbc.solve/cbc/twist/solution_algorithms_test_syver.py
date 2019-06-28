@@ -23,17 +23,17 @@ def default_parameters():
     return p
 
 
-def Make_D_function_spaces(vector, condition_types):
+def Make_D_function_spaces(space, condition_types):
     D_function_spaces = []
     for condition in condition_types:
-        if condition == 'vector':
-            D_function_spaces += [vector]
+        if condition == 'xyz':
+            D_function_spaces += [space]
         elif condition == 'x':
-            D_function_spaces += [vector.sub(0)]
+            D_function_spaces += [space.sub(0)]
         elif condition == 'y':
-            D_function_spaces += [vector.sub(1)]
+            D_function_spaces += [space.sub(1)]
         elif condition == 'z':
-            D_function_spaces += [vector.sub(2)]
+            D_function_spaces += [space.sub(2)]
     return D_function_spaces
 
 

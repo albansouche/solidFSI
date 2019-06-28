@@ -57,8 +57,8 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 1.0  # End time s.
-        self.dt = 0.05  # Time step s.
+        self.T = 1.5  # End time s.
+        self.dt = 0.1  # Time step s.
 
         # Pressure
         self.p_in_max = 5.0E+4  # Max inlet pressure Pa
@@ -70,10 +70,8 @@ class Setup(Setup_base):
         #self.t_ramp = 0.1  # s.
         #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
         #self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=1)
-        #self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))',
-        #                        p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
-        #self.p_exp = Expression('p_max*t*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)',
-        #                        p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
+        #self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))', p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
+        #self.p_exp = Expression('p_max*t*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
         self.p_exp = Expression('p_max*t', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
 
         # Solid prop.
@@ -87,7 +85,7 @@ class Setup(Setup_base):
 
         # saving data
         self.save_path = "results/law"
-        #self.save_path = "results/law"
+        #self.save_path = "results/PW3d"
         self.save_step = 1  # saving solution every "n" steps
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!
@@ -108,7 +106,7 @@ class Setup(Setup_base):
         self.solid_solver_model = "LinearElastic"
 
         # solvers
-        self.solid_solver_scheme = "CG1"  # "CG1" or "HHT"
+        self.solid_solver_scheme = "HHT"  # "CG1" or "HHT"
 
         # set compiler arguments
         parameters["form_compiler"]["quadrature_degree"] = 6
@@ -156,6 +154,7 @@ class Setup(Setup_base):
 
         noslip = Constant((0.0, 0.0, 0.0))
         freeslip = Constant(0.0)
+        fixed_outlet = True
 
         # Fluid velocity BCs
 
@@ -164,10 +163,14 @@ class Setup(Setup_base):
         # Mesh problem bcs
 
         # Dirichlet conditions for the solid problem
-        self.bcs_s_vals = [noslip, freeslip, freeslip]
-        self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
-
-        self.bcs_s_fct_sps = ['vector', 'y', 'y']
+        if fixed_outlet:
+            self.bcs_s_vals = [freeslip, freeslip, noslip]
+            self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
+            self.bcs_s_fct_sps = ['y', 'y', 'xyz']  # 'x', 'y', 'z' (freslip) or 'xyz' (noslip)
+        else:
+            self.bcs_s_vals = [noslip, freeslip, freeslip]
+            self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
+            self.bcs_s_fct_sps = ['xyz', 'y', 'y']  # 'x', 'y', 'z' (freslip) or 'xyz' (noslip)
 
         return
 
