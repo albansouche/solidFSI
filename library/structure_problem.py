@@ -28,6 +28,8 @@ class StructureSolver(Hyperelasticity):
         self.mu_s = setup.mu_s  # N/m2 == (kg/m/s2) == Pa
         self.lmbda = setup.lamda_s  # N/m2
 
+        self.body_force_exp = setup.body_force
+
         if setup.solid_solver_model == 'LinearElastic':
             self.material = LinearElastic([self.mu_s, self.lmbda])
         elif setup.solid_solver_model == 'StVenantKirchhoff':
@@ -79,6 +81,9 @@ class StructureSolver(Hyperelasticity):
         self.parameters["solver_parameters"]["save_solution"] = False
         self.parameters["solver_parameters"]["store_solution_data"] = False
         self.parameters["solver_parameters"]["element_degree"] = setup.d_deg
+
+    def body_force(self):
+        return self.body_force_exp
 
     def mesh(self):
         return self.mesh_s

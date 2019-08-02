@@ -135,6 +135,7 @@ class FSISubmeshes:
 
         self.mesh_m = Mesh()
         fr = HDF5File(mpi_comm_world(), mesh_folder + "/subMeshes.h5", 'r')
+        #fr = XDMFFile(mpi_comm_world(), mesh_folder + "/subMeshes.xdmf", 'r')
         fr.read(self.mesh_m, 'mesh_f', False)
         self.boundaries_m = MeshFunction('size_t', self.mesh_m, self.mesh_m.geometry().dim() - 1)
         fr.read(self.boundaries_m, 'boundaries_f')

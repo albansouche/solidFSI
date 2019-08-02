@@ -61,8 +61,6 @@ tract_S = Function(D)  # solid traction
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
 d_scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
-#d_tensor = TensorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
-#D_tensor = FunctionSpace(subM.mesh_s, d_tensor)
 
 scalar_characteristic = Function(D_scalar)
 
@@ -104,7 +102,7 @@ ds_s = Measure("ds", domain=subM.mesh_s, subdomain_data=subM.boundaries_s)
 n_s = FacetNormal(subM.mesh_s)
 T = Function(D1)
 Tn = Function(D1)
-Tn.vector()[:] = assemble(inner(Constant((1., 1., 1.)), Nd1) * ds_s(subdomain_id=setup.fsi_id))
+Tn.vector()[:] = assemble(inner(Constant((1.0,)*subM.mesh_s.geometry().dim()), Nd1) * ds_s(subdomain_id=setup.fsi_id))
 Tnvec = Tn.vector().get_local()
 np.place(Tnvec, Tnvec < 1e-9, 1.0)
 Tn.vector()[:] = Tnvec
@@ -113,10 +111,10 @@ Tn.vector()[:] = Tnvec
 t = 0.0
 counter = 1
 tic = tm.clock()
-assign(d_, project(Constant((0.0,0.0,0.0)), D))
-assign(scalar_characteristic, project(Constant(0.0), D_scalar))
+assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
+#assign(scalar_characteristic, project(Constant(0.0), D_scalar))
 sol_d_file.write(d_, t)
-sol_eps_file.write(scalar_characteristic, t)
+#sol_eps_file.write(scalar_characteristic, t)
 
 # TIME LOOP START ##############################################################
 print("ENTERING TIME LOOP")
@@ -149,17 +147,17 @@ while t < setup.T:
         #eps = InfinitesimalStrain(d_)  # Infinitesimal strain
 
         # Stresses
-        sig = _struct.material.SecondPiolaKirchhoffStress(d_)
+        #sig = _struct.material.SecondPiolaKirchhoffStress(d_)
 
         # Compute scalar characteristic for exportation
         #assign(scalar_characteristic, project(tr(eps), D_scalar))  # tr(eps)
         #assign(scalar_characteristic, project(eps[2, 2], D_scalar)) # eps_zz
         #assign(scalar_characteristic, project(tr(sig), D_scalar))  # tr(sig)
         #assign(scalar_characteristic, project(sig[2, 2], D_scalar))  # sig_zz
-        assign(scalar_characteristic, project(vonMises(sig), D_scalar))  # vonMises stress
+        #assign(scalar_characteristic, project(vonMises(sig), D_scalar))  # vonMises stress
 
         sol_d_file.write(d_, t)
-        sol_eps_file.write(scalar_characteristic, t)
+        #sol_eps_file.write(scalar_characteristic, t)
 
 
     # update solution vectors -----------------
