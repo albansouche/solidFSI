@@ -20,7 +20,7 @@ def extrap1d(interpolator):
 
 ### PARAMETERS ################################################################
 
-folder = 'results/law/'
+folder = 'results/PW3d/'
 extension = '.out'
 
 models = ['LinearElastic', 'StVenantKirchhoff']

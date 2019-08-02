@@ -57,22 +57,24 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 1  # End time s.
-        self.dt = 0.1  # Time step s.
+        self.T = 4  # End time s.
+        self.dt = 0.01  # Time step s.
 
         # Pressure
-        self.p_in_max = 5.0E+4  # Max inlet pressure Pa
-        f = 0.025
+        self.p_in_max = 5.0E+5  # Max inlet pressure Pa
+        f = 10.0
         L = 0.1
-        a = 0.01
+        a = 0.02
         sigma = 0.003
         t = 0.0
         #self.t_ramp = 0.1  # s.
         #self.p_exp = P_exp(self.p_in_max, f, L, t, degree=2)
         #self.p_exp = P_wave_exp(self.p_in_max, L, a, sigma, t, degree=1)
-        self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))', p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 1)
-        #self.p_exp = Expression('p_max*t*0.5*(1.0+sin(2.0*pi*f*t))',#*(1.0-0.1*(x[1]+0.05)/L)', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
-        #self.p_exp = Expression('p_max*t', p_max=self.p_in_max, f=f, L=L, t=t, degree=1)
+        self.p_exp = Expression('p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))', p_max = self.p_in_max, L=L, a=a, s=sigma, t=t, degree = 2)
+        #self.p_exp = Expression('p_max*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]+0.5*L)/s, 2.0))', p_max=self.p_in_max, f=f, L=L, s=sigma, t=t, degree=1)
+        #self.p_exp = Expression('p_max*t/T_max', p_max=self.p_in_max, T_max=self.T, t=t, degree=1)
+
+        self.body_force = []
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
@@ -103,7 +105,7 @@ class Setup(Setup_base):
 
         # Material constitutive law
         # "LinearElastic" or "StVenantKirchhoff", "MooneyRivlin", "neoHookean", "Isihara", "Biderman", "GentThomas" or "Ogden"
-        self.solid_solver_model = "LinearElastic"
+        self.solid_solver_model = "StVenantKirchhoff"
 
         # solvers
         self.solid_solver_scheme = "HHT"  # "CG1" or "HHT"
@@ -120,7 +122,7 @@ class Setup(Setup_base):
     def get_parent_mesh(self):
 
         # read mesh from mesh file
-        self.parent_mesh = Mesh(self.mesh_folder + "/mesh_double.xml")
+        self.parent_mesh = Mesh(self.mesh_folder + "/mesh_single.xml")
         #self.parent_mesh = refine(self.parent_mesh)
 
         # read domains and boundaries from mesh file
@@ -166,11 +168,11 @@ class Setup(Setup_base):
         if fixed_outlet:
             self.bcs_s_vals = [freeslip, freeslip, noslip]
             self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
-            self.bcs_s_fct_sps = ['y', 'y', 'xyz']  # 'x', 'y', 'z' (freslip) or 'xyz' (noslip)
+            self.bcs_s_fct_sps = ['y', 'y', 'xyz']  # 'x', 'y', 'z' (freeslip) or 'xyz' (noslip)
         else:
             self.bcs_s_vals = [noslip, freeslip, freeslip]
             self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
-            self.bcs_s_fct_sps = ['xyz', 'y', 'y']  # 'x', 'y', 'z' (freslip) or 'xyz' (noslip)
+            self.bcs_s_fct_sps = ['xyz', 'y', 'y']  # 'x', 'y', 'z' (freeslip) or 'xyz' (noslip)
 
         return
 
