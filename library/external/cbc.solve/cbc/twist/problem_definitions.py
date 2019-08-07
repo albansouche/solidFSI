@@ -189,6 +189,9 @@ class Hyperelasticity(StaticHyperelasticity):
         """Return boundaries over which Neumann conditions act"""
         return []
 
+    def pre_stress(self):
+        return []
+
     def kinetic_energy(self, v):
         """Return the kinetic energy given a velocity field, v"""
 

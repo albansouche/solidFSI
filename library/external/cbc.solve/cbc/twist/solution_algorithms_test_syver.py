@@ -62,6 +62,11 @@ class StaticMomentumBalanceSolver(CBCSolver):
         u = Function(vector)
         du = TrialFunction(vector)
 
+        # Residual stresses
+        pre_P = problem.pre_stress()
+        if pre_P == []:
+            pre_P = Constant(((0.0,)*vector.mesh().geometry().dim(),)*vector.mesh().geometry().dim())
+
         # Driving forces
         B = problem.body_force()
 
@@ -199,6 +204,11 @@ class MomentumBalanceSolver(CBCSolver):
         v0 = interpolate(v0, vector)
         v1 = interpolate(v0, vector)
 
+        # Residual stresses
+        pre_P = problem.pre_stress()
+        if pre_P == []:
+            pre_P = Constant(((0.0,)*vector.mesh().geometry().dim(),)*vector.mesh().geometry().dim())
+
         # Driving forces
         B = problem.body_force()
 
@@ -211,11 +221,12 @@ class MomentumBalanceSolver(CBCSolver):
         beta = 0.25
         gamma = 0.5
 
+        """Initial acceleration problem is defined, but never used.
         # Determine initial acceleration
         a0 = TrialFunction(vector)
         P0 = problem.first_pk_stress(u0)
         a_accn = inner(a0, v)*dx
-        L_accn = - inner(P0, Grad(v))*dx + inner(B, v)*dx
+        L_accn = - inner(P0 + pre_P, Grad(v))*dx + inner(B, v)*dx
 
         # Add contributions to the form from the Neumann boundary
         # conditions
@@ -245,8 +256,10 @@ class MomentumBalanceSolver(CBCSolver):
         # a0 was still defined as a TrialFunction, which led to arity error when
         # solving the nonlinear problem. If a0 is not computed, it has to be set
         # to a Function since it appear in the variational form L
+        """
         a0 = Function(vector)
         #solve(a_accn == L_accn, a0)
+
 
         k = Constant(dt)
         a1 = a0*(1.0 - 1.0/(2*beta)) - (u0 - u1 + k*v0)/(beta*k**2)
@@ -266,19 +279,20 @@ class MomentumBalanceSolver(CBCSolver):
         # Piola-Kirchhoff stress tensor based on the material model
         P = problem.first_pk_stress(u1)
 
-#         # FIXME: A general version of the trick below is what should
-#         # be used instead. The commentend-out lines only work well for
-#         # quadratically nonlinear models, e.g. St. Venant Kirchhoff.
+        # FIXME: A general version of the trick below is what should
+        # be used instead. The commentend-out lines only work well for
+        # quadratically nonlinear models, e.g. St. Venant Kirchhoff.
 
-#         # S0 = problem.second_pk_stress(u0)
-#         # S1 = problem.second_pk_stress(u1)
-#         # Sm = 0.5*(S0 + S1)
-#         # Fm = DeformationGradient(0.5*(u0 + u1))
-#         # P  = Fm*Sm
+        # S0 = problem.second_pk_stress(u0)
+        # S1 = problem.second_pk_stress(u1)
+        # Sm = 0.5*(S0 + S1)
+        # Fm = DeformationGradient(0.5*(u0 + u1))
+        # P  = Fm*Sm
 
         # The variational form corresponding to hyperelasticity
-        L = (int(problem.is_dynamic())*rho0*inner(a1, v)*dx
-             + inner(P, Grad(v))*dx - inner(B, v)*dx)
+        is_dynamic_expression = Constant(int(problem.is_dynamic()))
+        L = (is_dynamic_expression*rho0*inner(a1, v)*dx
+             + inner(P+pre_P, Grad(v))*dx - inner(B, v)*dx)
 
         # Add contributions to the form from the Neumann boundary
         # conditions

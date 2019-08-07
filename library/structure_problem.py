@@ -23,12 +23,17 @@ class StructureSolver(Hyperelasticity):
         self.mesh_s = subM.mesh_s
         self.T = setup.T
         self.dt = setup.dt
+        self.dynamic = setup.is_dynamic
 
         self.rho_s = setup.rho_s  # kg/m3
         self.mu_s = setup.mu_s  # N/m2 == (kg/m/s2) == Pa
         self.lmbda = setup.lamda_s  # N/m2
 
         self.body_force_exp = setup.body_force
+        self.initial_displacement = setup.u0
+        self.initial_velocity = setup.v0
+        self.pre_stress_exp = setup.pre_stress
+
 
         if setup.solid_solver_model == 'LinearElastic':
             self.material = LinearElastic([self.mu_s, self.lmbda])
@@ -95,7 +100,7 @@ class StructureSolver(Hyperelasticity):
         return self.dt
 
     def is_dynamic(self):
-        return True
+        return self.dynamic
 
     def dirichlet_values(self):
         return self.D_bcs_vals
@@ -106,6 +111,9 @@ class StructureSolver(Hyperelasticity):
     def dirichlet_function_spaces(self):
         return self.D_bcs_fct_sps
 
+    def initial_conditions(self):
+        return self.initial_displacement, self.initial_velocity
+
     def neumann_conditions(self):
         return self.N_bcs_vals
 
@@ -114,6 +122,9 @@ class StructureSolver(Hyperelasticity):
 
     def material_model(self):
         return self.material
+
+    def pre_stress(self):
+        return self.pre_stress_exp
 
     def reference_density(self):
         return self.rho_s
