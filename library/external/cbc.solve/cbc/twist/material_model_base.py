@@ -89,10 +89,10 @@ class MaterialModel():
 
     def FirstPiolaKirchhoffStress(self, u):
         S = self.SecondPiolaKirchhoffStress(u)
-        F = self.F
-        P = F*S
 
         if self.kinematic_measure == "InfinitesimalStrain":
             return S
         else:
+            F = self.F
+            P = F*S
             return P
