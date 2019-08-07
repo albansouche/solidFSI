@@ -3,20 +3,24 @@ import mshr
 import matplotlib.pyplot as plt
 
 mesh = Mesh('TF_fsi.xml.gz')
+mesh = refine(mesh)
+mesh = refine(mesh)
 
 solid_string = '(x[0] > 0.2 && x[1] > 0.19 - tol && x[0] < 0.6 + tol && x[1] < 0.21 + tol)'
 fluid_string = '(x[0] < 0.2 || x[1] < 0.19 + tol || x[0] > 0.6 - tol || x[1] > 0.21 - tol)'
 
-inlet_f_string = 'x[0] < tol'
-outlet_f_string = 'x[0] > 2.5 - tol'
+inlet_f_string = '(x[0] < tol)'
+outlet_f_string = '(x[0] > 2.5 - tol)'
 wall_string = '(x[1] < tol || x[1] > 0.41 - tol)'
-circle_string = '(pow(x[0]-0.2,2.0) + pow(x[1]-0.2,2.0) < pow(0.05,2.0) + tol)'
-circle_string = 'on_boundary && ! {}'.format(wall_string)
+box_string = '({} || {} || {})'.format(inlet_f_string, outlet_f_string, wall_string)
+#circle_string = '(pow(x[0]-0.2,2.0) + pow(x[1]-0.2,2.0) < pow(0.05,2.0) + tol)'
+circle_string = '(on_boundary && ! {})'.format(box_string)
 arc_f_string = '({} && {})'.format(fluid_string, circle_string)
 arc_s_string = '({} && {})'.format(solid_string, circle_string)
-noslip_f_string = '{} || {}'.format(wall_string, arc_f_string)
+noslip_f_string = '({} || {})'.format(wall_string, arc_f_string)
+#print(noslip_f_string); import sys; sys.exit()
 noslip_s_string = arc_s_string
-interface_fsi_string = '{} && {}'.format(solid_string, fluid_string)
+interface_fsi_string = '({} && {})'.format(solid_string, fluid_string)
 
 tol = 1.e-14
 
@@ -42,9 +46,9 @@ noslip_f.mark(boundaries, 2)
 noslip_s.mark(boundaries, 3)
 interface_fsi.mark(boundaries, 4)
 
-File('setups/turek_flag/mesh/mesh.xml') << mesh
-File('setups/turek_flag/mesh/subdomains.xml') << subdomains
-File('setups/turek_flag/mesh/boundaries.xml') << boundaries
+File('mesh.xml') << mesh
+File('subdomains.xml') << subdomains
+File('boundaries.xml') << boundaries
 
 File('boundaries.pvd') << boundaries
 
