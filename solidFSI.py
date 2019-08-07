@@ -111,10 +111,22 @@ Tn.vector()[:] = Tnvec
 t = 0.0
 counter = 1
 tic = tm.clock()
-assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
+if setup.u0 == []:
+    assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
+else:
+    assign(d_, project(setup.u0, D))
+
 #assign(scalar_characteristic, project(Constant(0.0), D_scalar))
 sol_d_file.write(d_, t)
 #sol_eps_file.write(scalar_characteristic, t)
+
+# Observe displacement at end of flag
+A = Point(0.6, 0.2)
+flag_end_disp = []
+flag_end_disp.append(d_(A))
+
+time_list = []
+time_list.append(t)
 
 # TIME LOOP START ##############################################################
 print("ENTERING TIME LOOP")
@@ -159,6 +171,9 @@ while t < setup.T:
         sol_d_file.write(d_, t)
         #sol_eps_file.write(scalar_characteristic, t)
 
+        time_list.append(t)
+        flag_end_disp.append(d_(A))
+
 
     # update solution vectors -----------------
     _struct.update()
@@ -166,3 +181,6 @@ while t < setup.T:
     # update time loop counter
     counter += 1
 ################################################################################
+
+np.save(setup.save_path + "/disp.npy", flag_end_disp)
+np.save(setup.save_path + "/time.npy", time_list)
