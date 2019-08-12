@@ -63,7 +63,7 @@ class StaticMomentumBalanceSolver(CBCSolver):
         du = TrialFunction(vector)
 
         # Residual stresses
-        pre_P = problem.pre_stress()
+        pre_P = problem.prestress()
         if pre_P == []:
             pre_P = Constant(((0.0,)*vector.mesh().geometry().dim(),)*vector.mesh().geometry().dim())
 
@@ -79,7 +79,7 @@ class StaticMomentumBalanceSolver(CBCSolver):
         P = problem.first_pk_stress(u)
 
         # The variational form corresponding to hyperelasticity
-        L = inner(P, Grad(v))*dx - inner(B, v)*dx
+        L = inner(P-pre_P, Grad(v))*dx - inner(B, v)*dx
 
         # Add contributions to the form from the Neumann boundary
         # conditions
@@ -205,8 +205,9 @@ class MomentumBalanceSolver(CBCSolver):
         v1 = interpolate(v0, vector)
 
         # Residual stresses
-        pre_P = problem.pre_stress()
+        pre_P = problem.prestress()
         if pre_P == []:
+            # as_matrix(0.0)
             pre_P = Constant(((0.0,)*vector.mesh().geometry().dim(),)*vector.mesh().geometry().dim())
 
         # Driving forces
@@ -292,7 +293,7 @@ class MomentumBalanceSolver(CBCSolver):
         # The variational form corresponding to hyperelasticity
         is_dynamic_expression = Constant(int(problem.is_dynamic()))
         L = (is_dynamic_expression*rho0*inner(a1, v)*dx
-             + inner(P+pre_P, Grad(v))*dx - inner(B, v)*dx)
+             + inner(P-pre_P, Grad(v))*dx - inner(B, v)*dx)
 
         # Add contributions to the form from the Neumann boundary
         # conditions
