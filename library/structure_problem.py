@@ -32,36 +32,36 @@ class StructureSolver(Hyperelasticity):
         self.body_force_exp = setup.body_force
         self.initial_displacement = setup.u0
         self.initial_velocity = setup.v0
-        self.pre_stress_exp = setup.pre_stress
+        self.prestress_exp = setup.prestress
 
-
-        if setup.solid_solver_model == 'LinearElastic':
+        print("Solid solver model: " + setup.solid_solver_model)
+        if setup.solid_solver_model == "LinearElastic":
             self.material = LinearElastic([self.mu_s, self.lmbda])
-        elif setup.solid_solver_model == 'StVenantKirchhoff':
+        elif setup.solid_solver_model == "StVenantKirchhoff":
             self.material = StVenantKirchhoff([self.mu_s, self.lmbda])
-        elif setup.solid_solver_model == 'MooneyRivlin':
+        elif setup.solid_solver_model == "MooneyRivlin":
             self.C1 = self.mu_s/2
             self.C2 = self.mu_s/2
             self.material = MooneyRivlin([self.C1, self.C2])
-        elif setup.solid_solver_model == 'neoHookean':
+        elif setup.solid_solver_model == "neoHookean":
             self.half_nkT = self.mu_s/2
             self.material = neoHookean([self.half_nkT])
-        elif setup.solid_solver_model == 'Isihara':
+        elif setup.solid_solver_model == "Isihara":
             self.C10 = self.mu_s/2
             self.C01 = self.mu_s/2
             self.C20 = self.mu_s/2
             self.material = Isihara([self.C10, self.C01, self.C20])
-        elif setup.solid_solver_model == 'Biderman':
+        elif setup.solid_solver_model == "Biderman":
             self.C10 = self.mu_s/2
             self.C01 = self.mu_s/2
             self.C20 = self.mu_s/2
             self.C30 = self.mu_s/2
             self.material = Biderman([self.C10, self.C01, self.C20, self.C30])
-        elif setup.solid_solver_model == 'GentThomas':
+        elif setup.solid_solver_model == "GentThomas":
             self.C1 = self.mu_s/2
             self.C2 = self.mu_s/2
             self.material = GentThomas([self.C1, self.C2])
-        elif setup.solid_solver_model == 'Ogden':
+        elif setup.solid_solver_model == "Ogden":
             # neoHookean
             self.alpha1 = 2
             self.alpha2 = 1
@@ -123,8 +123,8 @@ class StructureSolver(Hyperelasticity):
     def material_model(self):
         return self.material
 
-    def pre_stress(self):
-        return self.pre_stress_exp
+    def prestress(self):
+        return self.prestress_exp
 
     def reference_density(self):
         return self.rho_s

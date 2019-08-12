@@ -6,6 +6,7 @@ from dolfin import *
 from cbc.twist.kinematics import *
 from sys import exit
 
+
 class MaterialModel():
     """Base class for all hyperelastic material models """
 

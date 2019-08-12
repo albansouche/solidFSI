@@ -1,15 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-folder = 'results/turek_flag'
+folder = 'results/turek_flag/dynamic'
 
-t = np.load(folder + '_svk/time.npy')
-disp_lin = np.load(folder + '/disp.npy')
-disp_svk = np.load(folder + '_svk/disp.npy')
+
+t = np.load(folder + '/_LinearElastic/time.npy')
+disp_lin = np.load(folder + '/_LinearElastic/A.npy')
+disp_svk = np.load(folder + '/_StVenantKirchhoff/A.npy')
 
 a = 0  # 0 <= a <= b <= Nt
 b = None
 L = 1#0.35
+
+x = ['x', 'y']
 
 for i in [0, 1]:
     mean_svk = np.mean(disp_svk[:,i])
@@ -26,8 +29,8 @@ for i in [0, 1]:
     plt.plot(t[a:b], disp_lin[a:b,i]/L, label='Linear')
     plt.plot(t[a:b], disp_svk[a:b,i]/L, label='StVenantKirchhoff')
     plt.plot(t[a:b], mean_svk+0.0*t[a:b], label='Mean StVenantKirchhoff')
-    plt.plot(t[a:b], mean_svk+amp_svk+0.0*t[a:b])
-    plt.plot(t[a:b], mean_svk-amp_svk+0.0*t[a:b])
-
+    #plt.plot(t[a:b], mean_svk+amp_svk+0.0*t[a:b])
+    #plt.plot(t[a:b], mean_svk-amp_svk+0.0*t[a:b])
+    plt.title('{}-displacement of point A(t)'.format(x[i]))
     plt.legend()
-    plt.savefig(folder + '/disp_{}.png'.format(i))
+    plt.savefig(folder + '/disp_{}.png'.format(x[i]))
