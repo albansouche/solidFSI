@@ -164,6 +164,11 @@ def InversePiolaTransform(A, u):
     return B
 
 
-def vonMises(sigma):
-    s = sigma - 1.0/3.0*tr(sigma)*Identity(3)
-    return sqrt(3.0/2.0*inner(s, s))
+def vonMises(sigma, dim):
+    
+    if dim == 3:
+        s = sigma - 1/3*tr(sigma)*Identity(3)
+        return sqrt(3/2*inner(s, s))
+    elif dim == 2:
+        return pow(sigma[0,0], 2.0)+pow(sigma[1,1], 2.0)\
+             - sigma[0,0]*sigma[1,1] + 3*pow(sigma[0,1], 2.0)
