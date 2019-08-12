@@ -20,6 +20,26 @@ import numpy as np
 import time as tm
 from IPython import embed
 
+# FUNCTIONS #########################################################
+def assign_characteristic(space, scalar_characteristic, obs, quant):
+    assign(scalar_characteristic, project(obs(quant), space))
+
+def choose_obs(obs_string, dim=3):
+    for i in range(dim):
+        for j in range(dim):
+            if obs_string == "[{},{}]".format(i,j):
+                return lambda x : x[i,j]
+    if obs_string == "tr":
+        return tr
+    elif obs_string == "vonMises":
+        return lambda x : vonMises(x, dim)
+
+def choose_quant(quant, struct=None):
+    if quant == "strain":
+        return InfinitesimalStrain
+    elif quant == "stress":
+        return struct.material.SecondPiolaKirchhoffStress
+
 # READ USER INPUTS #############################################################
 from library.argpar import *
 args = parse()
@@ -53,13 +73,13 @@ else:  # read submeshes from files
     subM.read(setup.mesh_folder)
 
 # Function space and functions #################################################
-de = VectorElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+de = VectorElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D = FunctionSpace(subM.mesh_s, de)
 Nd = TestFunction(D)
 d_ = Function(D)  # sol disp. at t = n
 tract_S = Function(D)  # solid traction
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
-d_scalar = FiniteElement('CG', subM.mesh_s.ufl_cell(), setup.d_deg)
+d_scalar = FiniteElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 
 scalar_characteristic = Function(D_scalar)
@@ -83,19 +103,23 @@ if MPI.rank(mpi_comm_world()) == 0:
         shutil.rmtree(setup.save_path)
     os.makedirs(setup.save_path)
 MPI.barrier(mpi_comm_world())
-sol_d_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_def.xdmf")
+sol_d_file = XDMFFile(mpi_comm_world(), "{}/deformation{}.xdmf".format(setup.save_path, setup.extension))
 sol_d_file.parameters["flush_output"] = True
 sol_d_file.parameters["rewrite_function_mesh"] = False
 sol_d_file.parameters["functions_share_mesh"] = True
-sol_eps_file = XDMFFile(mpi_comm_world(), setup.save_path + "/solid_strain.xdmf")
-sol_eps_file.parameters["flush_output"] = True
-sol_eps_file.parameters["rewrite_function_mesh"] = False
-sol_eps_file.parameters["functions_share_mesh"] = True
+sol_char_file = XDMFFile(mpi_comm_world(), "{}/characteristic{}.xdmf".format(setup.save_path, setup.extension))
+sol_char_file.parameters["flush_output"] = True
+sol_char_file.parameters["rewrite_function_mesh"] = False
+sol_char_file.parameters["functions_share_mesh"] = True
 
 ################################################################################
 
+# If no pressure expression is defined, assume it is zero
+if setup.p_exp == []:
+    setup.p_exp = Expression("0.0", degree=0, t=0)
+
 # Traction vector as Neumann bds
-de1 = VectorElement('CG', subM.mesh_s.ufl_cell(), 1)
+de1 = VectorElement("CG", subM.mesh_s.ufl_cell(), 1)
 D1 = FunctionSpace(subM.mesh_s, de1)
 Nd1 = TestFunction(D1)
 ds_s = Measure("ds", domain=subM.mesh_s, subdomain_data=subM.boundaries_s)
@@ -111,29 +135,34 @@ Tn.vector()[:] = Tnvec
 t = 0.0
 counter = 1
 tic = tm.clock()
+
+
 if setup.u0 == []:
     assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
 else:
     assign(d_, project(setup.u0, D))
 
-#assign(scalar_characteristic, project(Constant(0.0), D_scalar))
-sol_d_file.write(d_, t)
-#sol_eps_file.write(scalar_characteristic, t)
+# Define functions for computing scalar characteristic
+obs = choose_obs(setup.obs, subM.mesh_s.geometry().dim())
+quant = choose_quant(setup.quant, _struct)
+assign_characteristic(D_scalar, scalar_characteristic, obs, quant(d_))
 
-# Observe displacement at end of flag
-A = Point(0.6, 0.2)
-flag_end_disp = []
-flag_end_disp.append(d_(A))
-
+# Save first timestep
 time_list = []
 time_list.append(t)
+sol_d_file.write(d_, t)
+sol_char_file.write(scalar_characteristic, t)
+
+# Observe displacement at observation points
+for obs_point in setup.obs_points:
+    obs_point.append(d_(obs_point.point))
 
 # TIME LOOP START ##############################################################
 print("ENTERING TIME LOOP")
 while t < setup.T:
 
     # time update
-    print("Solving for timestep %g of %g   " % (t, setup.T), end='\r')
+    print("Solving for timestep %g of %g   " % (t, setup.T), end="\r")
     #print("\n Solving for timestep %g" % t)
     t += setup.dt
     setup.p_exp.t = t
@@ -147,33 +176,23 @@ while t < setup.T:
     tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
 
     # Solve for solid deformation
-    if setup.solid_solver_scheme == 'HHT':
+    if setup.solid_solver_scheme == "HHT":
         assign(d_, _struct.step(setup.dt))  # pass displacements
-    elif setup.solid_solver_scheme == 'CG1':
+    elif setup.solid_solver_scheme == "CG1":
         assign(d_, _struct.step(setup.dt)[0])  # pass displacements / not velocities
 
     # save data -------------------------------
     if counter % setup.save_step == 0:
 
-        # Find strain
-        #eps = InfinitesimalStrain(d_)  # Infinitesimal strain
-
-        # Stresses
-        #sig = _struct.material.SecondPiolaKirchhoffStress(d_)
-
         # Compute scalar characteristic for exportation
-        #assign(scalar_characteristic, project(tr(eps), D_scalar))  # tr(eps)
-        #assign(scalar_characteristic, project(eps[2, 2], D_scalar)) # eps_zz
-        #assign(scalar_characteristic, project(tr(sig), D_scalar))  # tr(sig)
-        #assign(scalar_characteristic, project(sig[2, 2], D_scalar))  # sig_zz
-        #assign(scalar_characteristic, project(vonMises(sig), D_scalar))  # vonMises stress
+        assign_characteristic(D_scalar, scalar_characteristic, obs, quant(d_))
 
         sol_d_file.write(d_, t)
-        #sol_eps_file.write(scalar_characteristic, t)
+        sol_char_file.write(scalar_characteristic, t)
 
         time_list.append(t)
-        flag_end_disp.append(d_(A))
-
+        for obs_point in setup.obs_points:
+            obs_point.append(d_(obs_point.point))
 
     # update solution vectors -----------------
     _struct.update()
@@ -182,5 +201,6 @@ while t < setup.T:
     counter += 1
 ################################################################################
 
-np.save(setup.save_path + "/disp.npy", flag_end_disp)
 np.save(setup.save_path + "/time.npy", time_list)
+for obs_point in setup.obs_points:
+    obs_point.save(setup.save_path)

@@ -53,11 +53,14 @@ class Setup(Setup_base):
         # print setup
         print("Loading PW3d setup")
 
+        # Initiate Setup_base, setting all unspecified arguments to []
+        super().__init__()
+
         # FE order
         self.d_deg = 1  # Deformation degree (solid)
 
         # Time
-        self.T = 4  # End time s.
+        self.T = 0.1  # End time s.
         self.dt = 0.01  # Time step s.
 
         # Pressure
@@ -74,20 +77,23 @@ class Setup(Setup_base):
         #self.p_exp = Expression('p_max*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]+0.5*L)/s, 2.0))', p_max=self.p_in_max, f=f, L=L, s=sigma, t=t, degree=1)
         #self.p_exp = Expression('p_max*t/T_max', p_max=self.p_in_max, T_max=self.T, t=t, degree=1)
 
-        self.body_force = []
-
         # Solid prop.
         self.rho_s = 1.0E3  # density
         self.nu_s = 0.45  # Poisson ratio
         self.mu_s = 345E3  # Shear modulus or 2nd Lame Coef.
         self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)  # Young's modulus
 
+        # Solver properties ###################################################
+
+        # Dynamic or stationnary
+        self.is_dynamic = True
+
         # path to CBC.solve
         self.CBCsolve_path = "library/external/cbc.solve"
 
         # saving data
         #self.save_path = "results/stress-strain"
-        self.save_path = "results/PW3d"
+        self.save_path = "results/tube/PW3d"
         self.save_step = 1  # saving solution every "n" steps
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!
