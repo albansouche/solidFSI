@@ -12,6 +12,33 @@ from setups import *
 from IPython import embed  # for debugging
 from mshr import *
 
+
+def stationnary_prestress(E, nu, model, A):
+
+        C = A + 0.5*A**2
+        D = -nu/(1-nu)*C
+        B = np.sqrt(1+2*D) - 1
+        Alin = (1+A)*C
+        Blin = -nu/(1-nu)*Alin
+        prestress_tract = E/(1-nu**2)*(1+A)*C
+        P0 = Constant(((-prestress_tract, 0.0), (0.0, 0.0)))
+
+        u0 = Expression(("A*(x[0]-0.25)", "B*(x[1]-0.2)"), degree=2, A=0, B=0)  # Initial displacement
+        if model == "LinearElastic":
+            u0.A = Alin
+            u0.B = Blin
+        else:
+            u0.A = A
+            u0.B = B
+
+        # Compatibility condition
+        if Blin < -1  or D < -0.5:
+            raise ValueError("Prestress traction too high.")
+
+        return P0, u0
+
+
+
 class obs_point(object):
 
     def __init__(self, name, point):
@@ -28,76 +55,99 @@ class obs_point(object):
         np.save(folder + "/{}.npy".format(self.name), self.values)
 
 
+
 class Setup(Setup_base):
+
 
     def __init__(self):
 
         # print setup
         print("Loading Turek flag setup")
 
-        # Initiate Setup_base, setting all unspecified arguments to []
+        # IMPORTANT: Initiatialize Setup_base, setting all unspecified arguments to []
         super().__init__()
+
+
+        # SOLVER PROPERTIES ###################################################
 
         # FE order
         self.d_deg = 1  # Deformation degree (solid)
 
-        # Physical properties #################################################
+        # Dynamic or stationnary
+        self.is_dynamic = True
+
+        # Material constitutive law
+        self.solid_solver_model = "LinearElastic"
+
+        # solvers
+        self.solid_solver_scheme = "HHT"  #  "HHT" or "CG1"
+
+
+        # set compiler arguments
+        parameters["form_compiler"]["quadrature_degree"] = 6
+        os.environ["OMP_NUM_THREADS"] = "4"
+
+        # set log outputs from dolfin
+        set_log_level(40)  # 0 to 100 / more info >> lower value
+
+
+        # PHYSICAL PROPERTIES #################################################
 
         # Time
-        self.T  = 0.05  # End time s.
-        self.dt = 0.0001  # Time step s.
+        self.T  = 5  # End time s.
+        self.dt = 0.01  # Time step s.
         t = 0.0
 
         # Solid prop.
         self.rho_s = 1.0E3  # density
         self.nu_s = 0.4  # Poisson ratio
         self.mu_s = 0.5E6 #2.0E6 #  # Shear modulus or 2nd Lame Coef.
-        self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)  # Young's modulus
-        self.young = 2*self.mu_s*(1+self.nu_s)
-
-        # Pre-stress
-        prestress_tract = 20.0E+4  # Traction to induce horizontal pre-stress
-        self.prestress = Constant(((prestress_tract, 0.0), (0.0, 0.0)))
+        self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)
+        self.young = 2*self.mu_s*(1+self.nu_s) # Young's modulus
 
         # FSI pressure expression
         #self.p_exp = Expression("0.6 - tol < x[0] ? value : 0.0", degree=2, tol=1.0E-14, value=-0.0E3, t=t)  # Traction
 
         # Body forces
-        gravity = 2.0
+        g = 2.0
         deform = 0.01  # Deformation (u(L)/L) with static horizontal body force linear elasticity
-        #self.body_force = Constant((0.0, -self.rho_s*gravity))
-        #self.body_force = Constant((deform*2*self.young/0.35, 0.0))
-        #self.body_force = Constant((deform*2*self.young/0.35, -self.rho_s*gravity))
+        gravity = Constant((0.0, -self.rho_s*g))
         #factor = 100  # Horizontal to vertical body force ratio in static test
-        #self.body_force = Constant((factor*self.rho_s*grav, -self.rho_s*gravity))
+        #gravity = Constant((factor*self.rho_s*g, -self.rho_s*g))
+        self.body_force = gravity
+
+        # stationnary prestress
+        A_svk = 0.01  # Strain
+        P0, u0 = stationnary_prestress(E=self.young, nu=self.nu_s, model=self.solid_solver_model, A=A_svk)
+
+        # prestress
+        self.prestress = P0
 
         # Initial conditions
-        stationnary_prestress = True
-        if stationnary_prestress:
-            A = prestress_tract*(1-self.nu_s**2)/self.young
-            B = -prestress_tract*self.nu_s*(1+self.nu_s)/self.young
-            self.u0 = Expression(("A*(x[0]-0.25)", "B*(x[1]-0.2)"), degree=2, A=A, B=B)  # Initial displacement
+        if self.is_dynamic:
+            self.u0 = u0  # Inititial displacment
+
         #self.u0 = Expression(("0.0", "-pow(x[0]-0.25, 2.0)"), degree=2)  # Initial displacement
         #self.v0 = Expression(("0.0", "x[0]-0.25"), degree=2) # Initial velocity
 
 
 
-        # Observation parameters ##############################################
 
-        # Scalar quantity to be observed
+        # OBSERVATION PARAMETERS ##############################################
+
+        # Quantity to be observed
+        #self.quant = "strain"
+        self.quant = "stress"
+
+        # Operator on observed quantity
         #self.obs = "[1,0]"
         #self.obs = "tr"
         self.obs = "vonMises"
 
-        #self.quant = "strain"
-        self.quant = "stress"
-
         self.obs_points.append(obs_point("A", Point(0.6, 0.2)))
 
-        # Solver properties ###################################################
 
-        # Dynamic or stationnary
-        self.is_dynamic = True
+        # DATA PARAMETERS #####################################################
 
         # Flag or box imitating flag
         flag_or_box = "box"
@@ -106,9 +156,11 @@ class Setup(Setup_base):
         self.CBCsolve_path = "library/external/cbc.solve"
 
         # saving data
-        self.extension = ""
-        self.save_path = "results/turek_flag/{}/".format("dynamic"*self.is_dynamic+"static"*(not self.is_dynamic))
         self.save_step = 1  # saving solution every "n" steps
+        self.save_path = "results/turek_flag/{}/".format("dynamic"*self.is_dynamic + "static"*(not self.is_dynamic))
+        self.extension = self.solid_solver_model
+        #self.extension += "_{}".format(factor)
+        self.save_path += self.extension
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!
         self.mesh_folder = "setups/turek_flag/mesh_{}".format(flag_or_box)
@@ -121,36 +173,11 @@ class Setup(Setup_base):
         self.noslip_f_id = 2 # fluid wall id
         self.noslip_s_id = 3  # solid clamp id
         self.fsi_id = 4  # IMPORTANT VARIABLE value of the FSI facet id in the parent mesh file
+
+        # "Box-flag" mesh does not have a fluid domain.
         if flag_or_box == "box":
             self.dom_f_id = self.dom_s_id
 
-        # Material constitutive law
-        self.solid_solver_model = "LinearElastic"
-
-        if not self.is_dynamic:
-            self.u0 = []
-        elif stationnary_prestress and self.solid_solver_model == "StVenantKirchhoff":
-            if B < -0.25:
-                raise ValueError("Prestress traction too high for StVenantKirchhoff.")
-            C = 0.5*np.sqrt(1+4*A) - 0.5
-            D = 0.5*np.sqrt(1+4*B) - 0.5
-            self.u0.A = C
-            self.u0.B = D
-
-        # Shortcut for puttiing StVenantKirchhoff results in separate folder from LinearElastic
-        self.extension += "_{}".format(self.solid_solver_model)
-        #self.extension += "_{}".format(factor)
-        self.save_path += self.extension
-
-        # solvers
-        self.solid_solver_scheme = "HHT"  # "CG1" or "HHT"
-
-        # set compiler arguments
-        parameters["form_compiler"]["quadrature_degree"] = 6
-        os.environ["OMP_NUM_THREADS"] = "4"
-
-        # set log outputs from dolfin
-        set_log_level(40)  # 0 to 100 / more info >> lower value
 
     ############################################################################
 
@@ -191,6 +218,7 @@ class Setup(Setup_base):
     def setup_Dirichlet_BCs(self):
 
         noslip = Constant((0.0, 0.0))
+        freeslip = Constant(0.0)
 
         # Fluid velocity BCs
 
