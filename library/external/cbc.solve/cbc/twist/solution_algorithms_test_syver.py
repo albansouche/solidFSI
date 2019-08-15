@@ -79,7 +79,7 @@ class StaticMomentumBalanceSolver(CBCSolver):
         P = problem.first_pk_stress(u)
 
         # The variational form corresponding to hyperelasticity
-        L = inner(P-pre_P, Grad(v))*dx - inner(B, v)*dx
+        L = inner(P+pre_P, Grad(v))*dx - inner(B, v)*dx
 
         # Add contributions to the form from the Neumann boundary
         # conditions
@@ -202,10 +202,12 @@ class MomentumBalanceSolver(CBCSolver):
         # Initial displacement and velocity
         u0 = interpolate(u0, vector)
         v0 = interpolate(v0, vector)
-        v1 = interpolate(v0, vector)
+        u1.assign(u0)
+        v1.assign(v0)
 
         # Residual stresses
         pre_P = problem.prestress()
+
         if pre_P == []:
             # as_matrix(0.0)
             pre_P = Constant(((0.0,)*vector.mesh().geometry().dim(),)*vector.mesh().geometry().dim())
@@ -227,7 +229,7 @@ class MomentumBalanceSolver(CBCSolver):
         a0 = TrialFunction(vector)
         P0 = problem.first_pk_stress(u0)
         a_accn = inner(a0, v)*dx
-        L_accn = - inner(P0 + pre_P, Grad(v))*dx + inner(B, v)*dx
+        L_accn = - inner(P0+pre_P, Grad(v))*dx + inner(B, v)*dx
 
         # Add contributions to the form from the Neumann boundary
         # conditions
@@ -293,7 +295,7 @@ class MomentumBalanceSolver(CBCSolver):
         # The variational form corresponding to hyperelasticity
         is_dynamic_expression = Constant(int(problem.is_dynamic()))
         L = (is_dynamic_expression*rho0*inner(a1, v)*dx
-             + inner(P-pre_P, Grad(v))*dx - inner(B, v)*dx)
+             + inner(P+pre_P, Grad(v))*dx - inner(B, v)*dx)
 
         # Add contributions to the form from the Neumann boundary
         # conditions
@@ -488,6 +490,8 @@ class CG1MomentumBalanceSolver(CBCSolver):
             #v0.vector()[0:len(_v0)] = _v0[:]
             v0.vector()[:] = _v0[:]
 
+        U.assign(U0)
+
         # Create boundary conditions
         dirichlet_values = problem.dirichlet_values()
         dirichlet_function_spaces = Make_D_function_spaces(mixed_element.sub(0), problem.dirichlet_function_spaces())
@@ -505,6 +509,11 @@ class CG1MomentumBalanceSolver(CBCSolver):
         L_proj = inner(u0, xi)*dx + inner(v0, eta)*dx
         solve(a_proj == L_proj, U0)
         u0, v0 = split(U0)
+
+        # Residual stresses
+        pre_P = problem.prestress()
+        if pre_P == []:
+            pre_P = Constant(((0.0,)*vector.mesh().geometry().dim(),)*vector.mesh().geometry().dim())
 
         # Driving forces
         B = problem.body_force()
@@ -538,7 +547,7 @@ class CG1MomentumBalanceSolver(CBCSolver):
         k = Constant(dt)
 
         # The variational form corresponding to hyperelasticity
-        L = rho0*inner(v - v0, xi)*dx + k*inner(P, grad(xi))*dx \
+        L = rho0*inner(v - v0, xi)*dx + k*inner(P+pre_P, grad(xi))*dx \
             - k*inner(B, xi)*dx + inner(u - u0, eta)*dx \
             - k*inner(v_mid, eta)*dx
 

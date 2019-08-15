@@ -20,7 +20,7 @@ import numpy as np
 import time as tm
 from IPython import embed
 
-# FUNCTIONS #########################################################
+# FUNCTIONS ###################################################################
 def assign_characteristic(space, scalar_characteristic, obs, quant):
     assign(scalar_characteristic, project(obs(quant), space))
 
@@ -103,11 +103,11 @@ if MPI.rank(mpi_comm_world()) == 0:
         shutil.rmtree(setup.save_path)
     os.makedirs(setup.save_path)
 MPI.barrier(mpi_comm_world())
-sol_d_file = XDMFFile(mpi_comm_world(), "{}/deformation{}.xdmf".format(setup.save_path, setup.extension))
+sol_d_file = XDMFFile(mpi_comm_world(), "{}/disp_{}.xdmf".format(setup.save_path, setup.extension))
 sol_d_file.parameters["flush_output"] = True
 sol_d_file.parameters["rewrite_function_mesh"] = False
 sol_d_file.parameters["functions_share_mesh"] = True
-sol_char_file = XDMFFile(mpi_comm_world(), "{}/characteristic{}.xdmf".format(setup.save_path, setup.extension))
+sol_char_file = XDMFFile(mpi_comm_world(), "{}/quant_{}.xdmf".format(setup.save_path, setup.extension))
 sol_char_file.parameters["flush_output"] = True
 sol_char_file.parameters["rewrite_function_mesh"] = False
 sol_char_file.parameters["functions_share_mesh"] = True

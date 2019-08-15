@@ -61,8 +61,10 @@ class MaterialModel():
         psi = self.strain_energy(MaterialModel._parameters_as_functions(self, u))
 
         if self.kinematic_measure == "InfinitesimalStrain":
-            epsilon = self.epsilon
-            S = diff(psi, epsilon)
+            #epsilon = self.epsilon
+            #S = diff(psi, epsilon)
+            S = inv(self.F)*self.FirstPiolaKirchhoffStress(u)
+
         elif self.kinematic_measure == "RightCauchyGreen":
             C = self.C
             S = 2*diff(psi, C)
@@ -89,11 +91,14 @@ class MaterialModel():
         return S
 
     def FirstPiolaKirchhoffStress(self, u):
-        S = self.SecondPiolaKirchhoffStress(u)
 
         if self.kinematic_measure == "InfinitesimalStrain":
-            return S
+            self._construct_local_kinematics(u)
+            psi = self.strain_energy(MaterialModel._parameters_as_functions(self, u))
+            epsilon = self.epsilon
+            P = diff(psi, epsilon)
         else:
+            S = self.SecondPiolaKirchhoffStress(u)
             F = self.F
             P = F*S
-            return P
+        return P
