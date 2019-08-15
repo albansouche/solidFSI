@@ -13,33 +13,37 @@ from IPython import embed  # for debugging
 from mshr import *
 
 
-def stationnary_prestress(E, nu, model, A):
+def stationnary_prestress(E, nu, model, A, common="prestress"):
+    """Return analytical prestress and initial displacement.
+    :raise: ValueError
+    """
+    C = A + 0.5*A**2
+    D = -nu/(1-nu)*C
+    B = np.sqrt(1+2*D) - 1
+    Alin = (1+A)*C
+    Blin = -nu/(1-nu)*Alin
+    prestress_tract = E/(1-nu**2)*(1+A)*C
+    P0 = Constant(((-prestress_tract, 0.0), (0.0, 0.0)))
 
-        C = A + 0.5*A**2
-        D = -nu/(1-nu)*C
-        B = np.sqrt(1+2*D) - 1
-        Alin = (1+A)*C
-        Blin = -nu/(1-nu)*Alin
-        prestress_tract = E/(1-nu**2)*(1+A)*C
-        P0 = Constant(((-prestress_tract, 0.0), (0.0, 0.0)))
+    u0 = Expression(("A*(x[0]-0.25)", "B*(x[1]-0.2)"), degree=2, A=0, B=0)  # Initial displacement
+    if model == "LinearElastic":
+        u0.A = Alin
+        u0.B = Blin
+    else:
+        u0.A = A
+        u0.B = B
 
-        u0 = Expression(("A*(x[0]-0.25)", "B*(x[1]-0.2)"), degree=2, A=0, B=0)  # Initial displacement
-        if model == "LinearElastic":
-            u0.A = Alin
-            u0.B = Blin
-        else:
-            u0.A = A
-            u0.B = B
+    # Compatibility condition
+    if Blin < -1  or D < -0.5:
+        raise ValueError("Prestress traction too high.")
 
-        # Compatibility condition
-        if Blin < -1  or D < -0.5:
-            raise ValueError("Prestress traction too high.")
-
-        return P0, u0
+    return P0, u0
 
 
 
 class obs_point(object):
+    """Observation point object for monitoring displacement.
+    """
 
     def __init__(self, name, point):
 
@@ -57,7 +61,9 @@ class obs_point(object):
 
 
 class Setup(Setup_base):
-
+    """Setup configuration to be loaded by solidFSI.
+    Unspecified paramters will be set to zero.
+    """
 
     def __init__(self):
 
@@ -71,7 +77,7 @@ class Setup(Setup_base):
         # SOLVER PROPERTIES ###################################################
 
         # FE order
-        self.d_deg = 1  # Deformation degree (solid)
+        self.d_deg = 2  # Deformation degree (solid)
 
         # Dynamic or stationnary
         self.is_dynamic = True
@@ -80,7 +86,7 @@ class Setup(Setup_base):
         self.solid_solver_model = "LinearElastic"
 
         # solvers
-        self.solid_solver_scheme = "HHT"  #  "HHT" or "CG1"
+        self.solid_solver_scheme = "CG1"  #  "HHT" or "CG1"
 
 
         # set compiler arguments
@@ -106,45 +112,44 @@ class Setup(Setup_base):
         self.young = 2*self.mu_s*(1+self.nu_s) # Young's modulus
 
         # FSI pressure expression
-        #self.p_exp = Expression("0.6 - tol < x[0] ? value : 0.0", degree=2, tol=1.0E-14, value=-0.0E3, t=t)  # Traction
+        #self.p_exp = Expression("0.6 - tol < x[0] ? value : 0.0", degree=2, tol=1.0E-14, value=-1.0E3, t=t)  # Traction
 
         # Body forces
         g = 2.0
-        deform = 0.01  # Deformation (u(L)/L) with static horizontal body force linear elasticity
         gravity = Constant((0.0, -self.rho_s*g))
         #factor = 100  # Horizontal to vertical body force ratio in static test
         #gravity = Constant((factor*self.rho_s*g, -self.rho_s*g))
         self.body_force = gravity
 
-        # stationnary prestress
-        A_svk = 0.01  # Strain
-        P0, u0 = stationnary_prestress(E=self.young, nu=self.nu_s, model=self.solid_solver_model, A=A_svk)
+        # Stationnary prestress
+        P0, u0 = [], []
+        A_svk = 0.01  # Beam strain StVenantKirchhoff
+        #P0, u0 = stationnary_prestress(E=self.young, nu=self.nu_s, model=self.solid_solver_model, A=A_svk, common="prestress")
 
-        # prestress
+        # Prestress
         self.prestress = P0
 
         # Initial conditions
         if self.is_dynamic:
             self.u0 = u0  # Inititial displacment
-
-        #self.u0 = Expression(("0.0", "-pow(x[0]-0.25, 2.0)"), degree=2)  # Initial displacement
-        #self.v0 = Expression(("0.0", "x[0]-0.25"), degree=2) # Initial velocity
+            #self.u0 = Expression(("0.0", "-pow(x[0]-0.25, 2.0)"), degree=2)  # Initial displacement
+            #self.v0 = Expression(("0.0", "x[0]-0.25"), degree=2) # Initial velocity
 
 
 
 
         # OBSERVATION PARAMETERS ##############################################
 
-        # Quantity to be observed
-        #self.quant = "strain"
+        # Observe strain or stress ("strain", "stress")
         self.quant = "stress"
 
-        # Operator on observed quantity
+        # Operator on observed quantity (scalar)
         #self.obs = "[1,0]"
         #self.obs = "tr"
         self.obs = "vonMises"
 
         self.obs_points.append(obs_point("A", Point(0.6, 0.2)))
+
 
 
         # DATA PARAMETERS #####################################################
