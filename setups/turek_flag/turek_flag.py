@@ -23,15 +23,17 @@ def stationnary_prestress(E, nu, model, A, common="prestress"):
     Alin = (1+A)*C
     Blin = -nu/(1-nu)*Alin
     prestress_tract = E/(1-nu**2)*(1+A)*C
-    P0 = Constant(((-prestress_tract, 0.0), (0.0, 0.0)))
 
-    u0 = Expression(("A*(x[0]-0.25)", "B*(x[1]-0.2)"), degree=2, A=0, B=0)  # Initial displacement
-    if model == "LinearElastic":
+
+    u0 = Expression(("A*(x[0]-0.25)", "B*(x[1]-0.2)"), degree=2, A=A, B=B)  # Initial displacement
+
+    if common == "prestress" and model == "LinearElastic":
         u0.A = Alin
         u0.B = Blin
-    else:
-        u0.A = A
-        u0.B = B
+    elif common == "displacement" and model == "LinearElastic":
+        prestress_tract = E/(1-nu**2)*A
+
+    P0 = Constant(((-prestress_tract, 0.0), (0.0, 0.0)))
 
     # Compatibility condition
     if Blin < -1  or D < -0.5:
@@ -39,24 +41,6 @@ def stationnary_prestress(E, nu, model, A, common="prestress"):
 
     return P0, u0
 
-
-
-class obs_point(object):
-    """Observation point object for monitoring displacement.
-    """
-
-    def __init__(self, name, point):
-
-        self.name = name
-        self.point = point
-        self.values = []
-
-    def append(self, value):
-
-        self.values.append(value)
-
-    def save(self, folder):
-        np.save(folder + "/{}.npy".format(self.name), self.values)
 
 
 
@@ -77,21 +61,20 @@ class Setup(Setup_base):
         # SOLVER PROPERTIES ###################################################
 
         # FE order
-        self.d_deg = 2  # Deformation degree (solid)
+        self.d_deg = 1  # Deformation degree (solid)
 
         # Dynamic or stationnary
         self.is_dynamic = True
 
         # Material constitutive law
-        self.solid_solver_model = "LinearElastic"
+        self.solid_solver_model = "StVenantKirchhoff"
 
         # solvers
-        self.solid_solver_scheme = "CG1"  #  "HHT" or "CG1"
-
+        self.solid_solver_scheme = "HHT"  #  "HHT" or "CG1"
 
         # set compiler arguments
         parameters["form_compiler"]["quadrature_degree"] = 6
-        os.environ["OMP_NUM_THREADS"] = "4"
+        os.environ["OMP_NUM_THREADS"] = "8"#"4"
 
         # set log outputs from dolfin
         set_log_level(40)  # 0 to 100 / more info >> lower value
@@ -131,7 +114,7 @@ class Setup(Setup_base):
 
         # Initial conditions
         if self.is_dynamic:
-            self.u0 = u0  # Inititial displacment
+            self.u0 = u0  # Inititial displacement
             #self.u0 = Expression(("0.0", "-pow(x[0]-0.25, 2.0)"), degree=2)  # Initial displacement
             #self.v0 = Expression(("0.0", "x[0]-0.25"), degree=2) # Initial velocity
 
@@ -143,10 +126,8 @@ class Setup(Setup_base):
         # Observe strain or stress ("strain", "stress")
         self.quant = "stress"
 
-        # Operator on observed quantity (scalar)
-        #self.obs = "[1,0]"
-        #self.obs = "tr"
-        self.obs = "vonMises"
+        # Operator on observed quantity (scalar) "[i,j]", "tr" or "vonMises"
+        self.obs = "tr"
 
         self.obs_points.append(obs_point("A", Point(0.6, 0.2)))
 

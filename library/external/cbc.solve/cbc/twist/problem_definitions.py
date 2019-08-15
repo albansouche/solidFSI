@@ -39,7 +39,7 @@ class StaticHyperelasticity(CBCProblem):
         return []
 
     def dirichlet_values(self):
-        """Return Dirichlet boundary conditions for the displacment
+        """Return Dirichlet boundary conditions for the displacement
         field"""
         return []
 
@@ -169,7 +169,7 @@ class Hyperelasticity(StaticHyperelasticity):
         return [], []
 
     def dirichlet_values(self):
-        """Return Dirichlet boundary conditions for the displacment
+        """Return Dirichlet boundary conditions for the displacement
         field"""
         return []
 
