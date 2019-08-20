@@ -150,14 +150,21 @@ class StructurePreStressSolver(StaticHyperelasticity):
         self.rho_s = setup.rho_s  # kg/m3
         self.mu_s = setup.mu_s  # N/m2 == (kg/m/s2) == Pa
         self.lmbda = setup.lamda_s  # N/m2
+
+        self.body_force_exp = setup.body_force
+        self.initial_displacement = setup.u0
+        self.initial_velocity = setup.v0
+        self.prestress_exp = setup.prestress
+
         if setup.solid_solver_model == 'LinearElastic':
             self.material = LinearElastic([self.mu_s, self.lmbda])
         elif setup.solid_solver_model == 'StVenantKirchhoff':
             self.material = StVenantKirchhoff([self.mu_s, self.lmbda])
 
         # Boundaries
-        self.D_bcs_vals = setup.bcs_s_vals  # Dirichlet values #FIXME, for more than 1 boundrary condition
-        self.D_bcs_ids = [(subM.boundaries_s, setup.bcs_s_ids[0])]  # Dirichlet ids #FIXME, for more than 1 boundrary condition
+        self.D_bcs_vals = setup.bcs_s_vals  # Dirichlet values
+        self.D_bcs_ids = [(subM.boundaries_s, bcs_s_id) for bcs_s_id in setup.bcs_s_ids]  # Dirichlet ids
+        self.D_bcs_fct_sps = setup.bcs_s_fct_sps  # Dirichlet function space types
         self.N_bcs_vals = [tract_S0]  # Neumann values
         self.N_bcs_ids = ["on_boundary"]  # Neumann ids
 
@@ -172,11 +179,17 @@ class StructurePreStressSolver(StaticHyperelasticity):
     def mesh(self):
         return self.mesh_s
 
+    def body_force(self):
+        return self.body_force_exp
+
     def dirichlet_values(self):
         return self.D_bcs_vals
 
     def dirichlet_boundaries(self):
         return self.D_bcs_ids  # [(MeshFunction, index1), (MeshFunction, index2)]
+
+    def dirichlet_function_spaces(self):
+        return self.D_bcs_fct_sps
 
     def neumann_conditions(self):
         return self.N_bcs_vals
@@ -186,6 +199,9 @@ class StructurePreStressSolver(StaticHyperelasticity):
 
     def material_model(self):
         return self.material
+
+    def prestress(self):
+        return self.prestress_exp
 
     def calculate(self, subM, setup, d_0, tract_S0):
         """
@@ -208,7 +224,7 @@ class StructurePreStressSolver(StaticHyperelasticity):
 
         cpt = 0
         res_error = 1
-        res_tol = 1e-6
+        res_tol = 2e-5
 
         toto = File(setup.mesh_folder + "/prestress_iterations.pvd")
         toto << d_0
@@ -250,7 +266,8 @@ class StructurePreStressSolver(StaticHyperelasticity):
 
         # read inital mesh without modified boundaries!
         mesh = Mesh()
-        fr = HDF5File(mpi_comm_world(), setup.mesh_folder + "/subMeshes_ini.h5", 'r')
+        #fr = HDF5File(mpi_comm_world(), setup.mesh_folder + "/subMeshes_ini.h5", 'r')
+        fr = HDF5File(mpi_comm_world(), setup.mesh_folder + "/subMeshes.h5", 'r')
         fr.read(mesh, "mesh_s", False)
         bds = MeshFunction('size_t', mesh, 2)
         fr.read(bds, "boundaries_s")
