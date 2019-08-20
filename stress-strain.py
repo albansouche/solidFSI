@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.linalg as npl
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
@@ -20,23 +21,26 @@ def extrap1d(interpolator):
 
 ### PARAMETERS ################################################################
 
-folder = 'results/PW3d/'
-extension = '.out'
+folder = 'results/tube/PW3d/static'
+point_name = "midpoint"
 
 models = ['LinearElastic', 'StVenantKirchhoff']
-#models = ['LinearElastic', 'StVenantKirchhoff', 'neoHookean']
 N_models = len(models)
 
 #xlabel = 'Infinitesimal volumetric Strain $\\operatorname{tr}(\\epsilon)$'
-xlabel = 'Infinitesimal Strain $\\epsilon_{zz}$'
+#xlabel = 'Infinitesimal Strain $\\epsilon_{zz}$'
 #xlabel = 'Green-Lagrange Strain $E_{zz}$'
-#xlabel = 'Norm of displacement'
+xlabel = 'Norm of displacement'
 
-ylabel = '$\\operatorname{tr}(\\sigma)$'
+ylabel = '$\\operatorname{tr}(\\sigma)/3 [mmHg]$'
 #ylabel = '$\\sigma_{zz}$'
 #ylabel = '$Von Mises stress'
 
 ###############################################################################
+
+mmHg = 133.322387415
+if 0:
+    mmHg = 1
 
 eps = [0] * N_models
 sig = [0] * N_models
@@ -47,7 +51,11 @@ relerr = [0] * (N_models-1)
 
 # Extract data
 for i in range(N_models):
-    eps[i], sig[i] = np.loadtxt(folder+models[i]+extension)
+    d = np.load("{}/{}/{}_displacement.npy".format(folder, models[i], point_name))
+    d_norm = np.array([npl.norm(d[j]) for j in range(np.shape(d)[0])])
+    eps[i] = d_norm/0.011
+    #eps[i] np.load("{}/{}/{}_displacement.npy".format(folder, models[i], point_name))
+    sig[i] = np.load("{}/{}/{}_stress.npy".format(folder, models[i], point_name))/3/mmHg
     relation_point[i] = interp1d(eps[i], sig[i])
     relation[i] = np.vectorize(extrap1d(relation_point[i]))
 
@@ -61,11 +69,12 @@ plt.figure()
 for i in range(N_models):
     #if i >= 1: plt.plot(eps[0], relation[i](eps[0]), label=models[i]+' interpolated')
     plt.plot(eps[i], sig[i], label=models[i])
+plt.plot(0,0)
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
-plt.title('Stress-strain in the point $(0.11, 0.0, 0.0)$')
+plt.title('Stress-strain in the point $(0.011, 0.0, 0.0)$')
 plt.legend()
-plt.savefig(folder+'stress-strain.png')
+plt.savefig(folder+'/stress-strain.png')
 
 
 # Plot relative difference between linear model and the others
@@ -76,4 +85,4 @@ plt.xlabel(xlabel)
 plt.ylabel('Relative error of '+ylabel)
 plt.title('Relative difference: $\\frac{y_{hyper}-y_{lin}}{y_{lin}}$')
 plt.legend()
-plt.savefig(folder+'error.png')
+plt.savefig(folder+'/error.png')

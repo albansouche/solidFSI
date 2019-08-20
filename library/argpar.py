@@ -8,6 +8,7 @@ def parse():
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group('Parameters')
     group.add_argument("-setup", help="Set problem to solve", default="PW3d")
+    group.add_argument("-solid_solver_model", help="Set solid solver model", default=None)
     group.add_argument("-v_deg", type=int, default=None)
     group.add_argument("-p_deg", type=int,  default=None)
     group.add_argument("-dt", type=float, default=None)
