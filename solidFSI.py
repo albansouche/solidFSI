@@ -24,7 +24,7 @@ from IPython import embed
 def assign_characteristic(space, scalar_characteristic, obs, quant):
     assign(scalar_characteristic, project(obs(quant), space))
 
-def choose_obs(obs_string, dim=3):
+def choose_observator(obs_string, dim=3):
     for i in range(dim):
         for j in range(dim):
             if obs_string == "[{},{}]".format(i,j):
@@ -34,7 +34,7 @@ def choose_obs(obs_string, dim=3):
     elif obs_string == "vonMises":
         return lambda x : vonMises(x, dim)
 
-def choose_quant(quant, struct=None):
+def choose_quantity(quant, struct=None):
     if quant == "strain":
         return InfinitesimalStrain
     elif quant == "stress":
@@ -52,6 +52,7 @@ setup = Setup()
 for key, value in list(args.__dict__.items()):
     if value is None:
         args.__dict__.pop(key)
+
 setup.__dict__.update(args.__dict__)  # update if any given argument parameters
 
 # Check if CBC.solve module is in the system path
@@ -77,12 +78,12 @@ de = VectorElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D = FunctionSpace(subM.mesh_s, de)
 Nd = TestFunction(D)
 d_ = Function(D)  # sol disp. at t = n
+d_0 = Function(D)
 tract_S = Function(D)  # solid traction
+tract_S0 = Function(D)
 V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
 d_scalar = FiniteElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
-
-scalar_characteristic = Function(D_scalar)
 
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
@@ -92,10 +93,6 @@ subM.DOFs_fsi(V_dum, D, setup.fsi_id)
 print("Read boundary conditions from setup")
 setup.setup_Dirichlet_BCs()
 
-# Solid solver, based on cbc.twist #############################################
-print("Prepare structure solver")
-_struct = StructureSolver(setup, subM, tract_S)
-
 # Initialization of data file ##################################################
 print("Prepare output files")
 if MPI.rank(mpi_comm_world()) == 0:
@@ -103,15 +100,47 @@ if MPI.rank(mpi_comm_world()) == 0:
         shutil.rmtree(setup.save_path)
     os.makedirs(setup.save_path)
 MPI.barrier(mpi_comm_world())
+
+# PRE-STRESS CALCULATIONS ######################################################
+if setup.pre_press_val != []:
+    _pre_struct = StructurePreStressSolver(setup, subM, tract_S0)
+
+    # compute the zero-pressure geometry
+    assign(d_0, _pre_struct.calculate(subM, setup, d_0, tract_S0))
+
+    # save the geometry as mesh .pvd file (FIXME: create a function to output .vtp surface file)
+    name_file2save = "prestress_mesh"
+    _pre_struct.save_prestress_surface(setup, d_0, name_file2save)
+
+    # Move observation points with initial displacement
+    for obs_point in setup.obs_points:
+        disp_point = -d_0(obs_point.point)
+        obs_point.move_point(disp_point)
+
+    setup.u0 = Function(D)
+    setup.u0.assign(d_0)
+
+# Solid solver, based on cbc.twist #############################################
+print("Prepare structure solver")
+_struct = StructureSolver(setup, subM, tract_S)
+
+# Define functions for computing scalar characteristics
+observators = [choose_observator(observator, subM.mesh_s.geometry().dim()) for observator in setup.observators]
+quantities = [choose_quantity(quantity, _struct) for quantity in setup.quantities]
+observations = [Function(D_scalar) for i in range(len(setup.observators))]
+
 sol_d_file = XDMFFile(mpi_comm_world(), "{}/disp_{}.xdmf".format(setup.save_path, setup.extension))
 sol_d_file.parameters["flush_output"] = True
 sol_d_file.parameters["rewrite_function_mesh"] = False
 sol_d_file.parameters["functions_share_mesh"] = True
-sol_char_file = XDMFFile(mpi_comm_world(), "{}/quant_{}.xdmf".format(setup.save_path, setup.extension))
-sol_char_file.parameters["flush_output"] = True
-sol_char_file.parameters["rewrite_function_mesh"] = False
-sol_char_file.parameters["functions_share_mesh"] = True
-
+sol_char_file = [0]*len(observators)
+"""
+for i, _ in enumerate(sol_char_file):
+    sol_char_file[i] = XDMFFile(mpi_comm_world(), "{}/{}_{}.xdmf".format(setup.save_path, setup.observators[i]+setup.quantities[i], setup.extension))
+    sol_char_file[i].parameters["flush_output"] = True
+    sol_char_file[i].parameters["rewrite_function_mesh"] = False
+    sol_char_file[i].parameters["functions_share_mesh"] = True
+"""
 ################################################################################
 
 # If no pressure expression is defined, assume it is zero
@@ -131,39 +160,42 @@ Tnvec = Tn.vector().get_local()
 np.place(Tnvec, Tnvec < 1e-9, 1.0)
 Tn.vector()[:] = Tnvec
 
-# Write first value, before first time step
+# Time
 t = 0.0
 counter = 1
 tic = tm.clock()
-
 
 if setup.u0 == []:
     assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
 else:
     assign(d_, project(setup.u0, D))
 
-# Define functions for computing scalar characteristic
-obs = choose_obs(setup.obs, subM.mesh_s.geometry().dim())
-quant = choose_quant(setup.quant, _struct)
-assign_characteristic(D_scalar, scalar_characteristic, obs, quant(d_))
+for i,_ in enumerate(sol_char_file):
+    assign_characteristic(D_scalar, observations[i], observators[i], quantities[i](d_))
 
 # Save first timestep
 time_list = []
 time_list.append(t)
 sol_d_file.write(d_, t)
-sol_char_file.write(scalar_characteristic, t)
 
-# Observe displacement at observation points
+for i,_ in enumerate(sol_char_file):
+    #sol_char_file[i].write(observations[i], t)
+    pass
+
+# Observe quantities at observation points
 for obs_point in setup.obs_points:
-    obs_point.append(d_(obs_point.point))
+    obs_point.append(0, d_(obs_point.point))
+    for i,_ in enumerate(sol_char_file):
+        obs_point.append(1+i, observations[i](obs_point.point))
+
 
 # TIME LOOP START ##############################################################
 print("ENTERING TIME LOOP")
 while t < setup.T:
 
     # time update
-    print("Solving for timestep %g of %g   " % (t, setup.T), end="\r")
-    #print("\n Solving for timestep %g" % t)
+    #print("Solving for timestep %g of %g   " % (t, setup.T), end="\r")
+    print("\n Solving for timestep %g" % t)
     t += setup.dt
     setup.p_exp.t = t
 
@@ -181,24 +213,28 @@ while t < setup.T:
     elif setup.solid_solver_scheme == "CG1":
         assign(d_, _struct.step(setup.dt)[0])  # pass displacements / not velocities
 
-    # save data -------------------------------
+    # Save data
     if counter % setup.save_step == 0:
 
-        # Compute scalar characteristic for exportation
-        assign_characteristic(D_scalar, scalar_characteristic, obs, quant(d_))
-
         sol_d_file.write(d_, t)
-        sol_char_file.write(scalar_characteristic, t)
-
         time_list.append(t)
+
+        # Compute scalar characteristic for exportation
+        for i, _ in enumerate(sol_char_file):
+            assign_characteristic(D_scalar, observations[i], observators[i], quantities[i](d_))
+            #sol_char_file[i].write(observations[i], t)
+
         for obs_point in setup.obs_points:
-            obs_point.append(d_(obs_point.point))
+            obs_point.append(0, d_(obs_point.point))
+            for i, _ in enumerate(sol_char_file):
+                obs_point.append(1+i, observations[i](obs_point.point))
 
     # update solution vectors -----------------
     _struct.update()
 
     # update time loop counter
     counter += 1
+
 ################################################################################
 
 np.save(setup.save_path + "/time.npy", time_list)

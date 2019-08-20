@@ -30,7 +30,7 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Dynamic or stationnary
-        self.is_dynamic = True
+        self.is_dynamic = False
 
         # Material constitutive law
         self.solid_solver_model = "StVenantKirchhoff"
@@ -59,16 +59,20 @@ class Setup(Setup_base):
         self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)  # Young's modulus
 
         # Pressure
-        p_max = 5.0E+4  # Max inlet pressure Pa
-        p_wave = "p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))"
-        p_inlet = "p_max*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]+0.5*L)/s, 2.0))"
-        p_exp = "p_max*t/T_max"
-        self.p_exp = Expression(p_wave, degree=2, p_max=p_max, f=10, L=0.1, a=0.02, s=0.003, t=0)
+        mmHg = 133.322387415  # 1mmHg in Pa
+        p_dia = 80*mmHg  # Diastolic pressure, Pa
+        p_max = 120*mmHg  # Maximum pressure, Pa
+        p_wave = "p_dia + p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))"
+        p_inlet = "p_dia + p_max*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]+0.5*L)/s, 2.0))"
+        p_exp = "p_dia + (p_max-p_dia)*t/T_max"
+        p_const = "p_dia"
+        self.p_exp = Expression(p_exp, degree=2, p_max=p_max, p_dia=p_dia, T_max=self.T, f=10, L=0.1, a=0.02, s=0.003, t=0)
 
         # Body forces
         pass
 
         # Prestress
+        self.pre_press_val = p_dia
         pass
 
         # Initial conditions
@@ -77,13 +81,14 @@ class Setup(Setup_base):
 
         # OBSERVATION PARAMETERS ##############################################
 
-        # Observe strain or stress ("strain", "stress")
-        self.quant = "stress"
+        # Observe strain or stress ("displacement", "strain", "stress")
+        self.quantities = ["stress"]
 
         # Operator on observed quantity (scalar) "[i,j]", "tr" or "vonMises"
-        self.obs = "vonMises"
+        self.observators = ["tr"]
 
-        self.obs_points.append(obs_point("midpoint", Point(0.011, 0, 0)))
+        # Observation points
+        self.obs_points.append(obs_point("midpoint", Point(0.011, 0, 0), ["displacement"]+self.quantities))
 
 
         # DATA PARAMETERS #####################################################
@@ -93,7 +98,7 @@ class Setup(Setup_base):
 
         # Saving data
         self.extension = self.solid_solver_model
-        self.save_path = "results/tube/PW3d/{}".format(self.extension)
+        self.save_path = "results/tube/PW3d/{}{}/{}".format(self.is_dynamic*"dynamic", (not self.is_dynamic)*"static", self.extension)
         self.save_step = 1  # saving solution every "n" steps
 
         # Parent mesh info. !! values can be redefined in get_parent_mesh() !!
@@ -116,7 +121,7 @@ class Setup(Setup_base):
     def get_parent_mesh(self):
 
         # Read mesh from mesh file
-        self.parent_mesh = Mesh(self.mesh_folder + "/mesh_single.xml")
+        self.parent_mesh = Mesh(self.mesh_folder + "/mesh_double.xml")
         #self.parent_mesh = refine(self.parent_mesh)
 
         # Read domains and boundaries from mesh file
@@ -154,15 +159,22 @@ class Setup(Setup_base):
         # Mesh problem bcs
 
         # Dirichlet conditions for the solid problem
-        if fixed_outlet:
+        if 0:#fixed_outlet:
             self.bcs_s_vals = [freeslip, freeslip, noslip]
             self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
             self.bcs_s_fct_sps = ["y", "y", "xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
-        else:
+        elif 0:
             self.bcs_s_vals = [noslip, freeslip, freeslip]
             self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
             self.bcs_s_fct_sps = ["xyz", "y", "y"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
-
+        elif 0:
+            self.bcs_s_vals = [noslip]
+            self.bcs_s_ids = [self.outlet_s_id]
+            self.bcs_s_fct_sps = ["xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
+        elif 1:
+            self.bcs_s_vals = [noslip, noslip, noslip]
+            self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
+            self.bcs_s_fct_sps = ["xyz", "xyz", "xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
         return
 
     ############################################################################
