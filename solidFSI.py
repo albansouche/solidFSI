@@ -62,6 +62,27 @@ if setup.CBCsolve_path not in sys.path:
 from library.structure_problem import *
 from library.fsi_coupling import *
 
+# Initialization of data file ##################################################
+print("Prepare output files")
+if MPI.rank(mpi_comm_world()) == 0:
+    if os.path.isdir(setup.save_path):
+        shutil.rmtree(setup.save_path)
+    os.makedirs(setup.save_path)
+MPI.barrier(mpi_comm_world())
+
+sol_d_file = XDMFFile(mpi_comm_world(), "{}/disp_{}.xdmf".format(setup.save_path, setup.extension))
+sol_d_file.parameters["flush_output"] = True
+sol_d_file.parameters["rewrite_function_mesh"] = False
+sol_d_file.parameters["functions_share_mesh"] = True
+sol_char_file = [0]*len(setup.observators)
+for i, _ in enumerate(setup.observators):
+    if setup.store_everywhere[i]:
+        sol_char_file[i] = XDMFFile(mpi_comm_world(), "{}/{}_{}.xdmf".format(setup.save_path, setup.observators[i]+setup.quantities[i], setup.extension))
+        sol_char_file[i].parameters["flush_output"] = True
+        sol_char_file[i].parameters["rewrite_function_mesh"] = False
+        sol_char_file[i].parameters["functions_share_mesh"] = True
+
+
 # MESHES #######################################################################
 print("Extract fluid and solid submeshes")
 subM = FSISubmeshes()
@@ -85,6 +106,11 @@ V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
 d_scalar = FiniteElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 
+if setup.u0 == []:
+    assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
+else:
+    assign(d_, project(setup.u0, D))
+
 # DOFS mapping #################################################################
 print("Extract FSI DOFs")
 subM.DOFs_fsi(V_dum, D, setup.fsi_id)
@@ -92,14 +118,6 @@ subM.DOFs_fsi(V_dum, D, setup.fsi_id)
 # Boundary conditions ##########################################################
 print("Read boundary conditions from setup")
 setup.setup_Dirichlet_BCs()
-
-# Initialization of data file ##################################################
-print("Prepare output files")
-if MPI.rank(mpi_comm_world()) == 0:
-    if os.path.isdir(setup.save_path):
-        shutil.rmtree(setup.save_path)
-    os.makedirs(setup.save_path)
-MPI.barrier(mpi_comm_world())
 
 # PRE-STRESS CALCULATIONS ######################################################
 if setup.pre_press_val != []:
@@ -117,8 +135,8 @@ if setup.pre_press_val != []:
         disp_point = -d_0(obs_point.point)
         obs_point.move_point(disp_point)
 
-    setup.u0 = Function(D)
-    setup.u0.assign(d_0)
+    # Pass initial displacement
+    d_.assign(d_0)
 
 # Solid solver, based on cbc.twist #############################################
 print("Prepare structure solver")
@@ -129,18 +147,6 @@ observators = [choose_observator(observator, subM.mesh_s.geometry().dim()) for o
 quantities = [choose_quantity(quantity, _struct) for quantity in setup.quantities]
 observations = [Function(D_scalar) for i in range(len(setup.observators))]
 
-sol_d_file = XDMFFile(mpi_comm_world(), "{}/disp_{}.xdmf".format(setup.save_path, setup.extension))
-sol_d_file.parameters["flush_output"] = True
-sol_d_file.parameters["rewrite_function_mesh"] = False
-sol_d_file.parameters["functions_share_mesh"] = True
-sol_char_file = [0]*len(observators)
-"""
-for i, _ in enumerate(sol_char_file):
-    sol_char_file[i] = XDMFFile(mpi_comm_world(), "{}/{}_{}.xdmf".format(setup.save_path, setup.observators[i]+setup.quantities[i], setup.extension))
-    sol_char_file[i].parameters["flush_output"] = True
-    sol_char_file[i].parameters["rewrite_function_mesh"] = False
-    sol_char_file[i].parameters["functions_share_mesh"] = True
-"""
 ################################################################################
 
 # If no pressure expression is defined, assume it is zero
@@ -165,11 +171,6 @@ t = 0.0
 counter = 1
 tic = tm.clock()
 
-if setup.u0 == []:
-    assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
-else:
-    assign(d_, project(setup.u0, D))
-
 for i,_ in enumerate(sol_char_file):
     assign_characteristic(D_scalar, observations[i], observators[i], quantities[i](d_))
 
@@ -184,9 +185,15 @@ for i,_ in enumerate(sol_char_file):
 
 # Observe quantities at observation points
 for obs_point in setup.obs_points:
-    obs_point.append(0, d_(obs_point.point))
-    for i,_ in enumerate(sol_char_file):
-        obs_point.append(1+i, observations[i](obs_point.point))
+    k = 0
+    if "displacement" in obs_point.value_names:
+        obs_point.append(k, d_(obs_point.point))
+        k += 1
+    if "traction" in obs_point.value_names:
+        obs_point.append(1, setup.p_exp(obs_point.point))
+        k += 1
+    for i, _ in enumerate(sol_char_file):
+        obs_point.append(k+i, observations[i](obs_point.point))
 
 
 # TIME LOOP START ##############################################################
@@ -222,12 +229,19 @@ while t < setup.T:
         # Compute scalar characteristic for exportation
         for i, _ in enumerate(sol_char_file):
             assign_characteristic(D_scalar, observations[i], observators[i], quantities[i](d_))
-            #sol_char_file[i].write(observations[i], t)
+            if setup.store_everywhere[i]:
+                sol_char_file[i].write(observations[i], t)
 
         for obs_point in setup.obs_points:
-            obs_point.append(0, d_(obs_point.point))
+            k = 0
+            if "displacement" in obs_point.value_names:
+                obs_point.append(k, d_(obs_point.point))
+                k += 1
+            if "traction" in obs_point.value_names:
+                obs_point.append(1, setup.p_exp(obs_point.point))
+                k += 1
             for i, _ in enumerate(sol_char_file):
-                obs_point.append(1+i, observations[i](obs_point.point))
+                obs_point.append(k+i, observations[i](obs_point.point))
 
     # update solution vectors -----------------
     _struct.update()

@@ -46,51 +46,6 @@ class Setup(Setup_base):
         set_log_level(90)  # 0 to 100 / more info >> lower value
 
 
-        # PHYSICAL PROPERTIES #################################################
-
-        # Time
-        self.T = 10  # End time s.
-        self.dt = 0.1  # Time step s.
-
-        # Solid properties
-        self.rho_s = 1.0E3  # density
-        self.nu_s = 0.45  # Poisson ratio
-        self.mu_s = 345E3  # Shear modulus or 2nd Lame Coef.
-        self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)  # Young's modulus
-
-        # Pressure
-        mmHg = 133.322387415  # 1mmHg in Pa
-        p_dia = 80*mmHg  # Diastolic pressure, Pa
-        p_max = 120*mmHg  # Maximum pressure, Pa
-        p_wave = "p_dia + p_max*exp(-0.5*pow((x[1]+0.5*L+4.0*s-a*t)/s, 2.0))"
-        p_inlet = "p_dia + p_max*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]+0.5*L)/s, 2.0))"
-        p_exp = "p_dia + (p_max-p_dia)*t/T_max"
-        p_const = "p_dia"
-        self.p_exp = Expression(p_exp, degree=2, p_max=p_max, p_dia=p_dia, T_max=self.T, f=10, L=0.1, a=0.02, s=0.003, t=0)
-
-        # Body forces
-        pass
-
-        # Prestress
-        self.pre_press_val = p_dia
-        pass
-
-        # Initial conditions
-        pass
-
-
-        # OBSERVATION PARAMETERS ##############################################
-
-        # Observe strain or stress ("displacement", "strain", "stress")
-        self.quantities = ["stress"]
-
-        # Operator on observed quantity (scalar) "[i,j]", "tr" or "vonMises"
-        self.observators = ["tr"]
-
-        # Observation points
-        self.obs_points.append(obs_point("midpoint", Point(0.011, 0, 0), ["displacement"]+self.quantities))
-
-
         # DATA PARAMETERS #####################################################
 
         # Path to CBC.solve
@@ -103,6 +58,7 @@ class Setup(Setup_base):
 
         # Parent mesh info. !! values can be redefined in get_parent_mesh() !!
         self.mesh_folder = "setups/PW3d/mesh"
+        self.mesh_file = "cyl25x4mm_double.xml"
         self.mesh_split = True  # spliting the mesh True or False. Submesh are systematically saved in the folder
         self.parent_mesh = []  # if parent mesh provided by a xml or xml.gz file
         self.dom_f_id = 1  # value of the cell id for the fluid domain in the parent mesh file
@@ -115,13 +71,78 @@ class Setup(Setup_base):
         self.outlet_s_id = 11  # solid outlet id
 
 
+        # PHYSICAL PROPERTIES #################################################
+
+        # Tube geometry
+        if "cyl10x2cm" in self.mesh_file:
+            R_inner = 0.01
+            R_outer = 0.012
+            L = 0.1
+        else:
+            R_inner = 0.002
+            R_outer = 0.0023
+            L = 0.025
+        inlet = - 0.5*L
+
+        # Time
+        self.T = 5  # End time s.
+        self.dt = 0.1  # Time step s.
+
+        # Solid properties
+        self.rho_s = 1.0E3  # density
+        self.nu_s = 0.45  # Poisson ratio
+        self.mu_s = 345E3  # Shear modulus or 2nd Lame Coef.
+        self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)  # Young's modulus
+
+        # Pressure
+        mmHg = 133.322387415  # 1mmHg in Pa
+        p_0 = 50*mmHg  # Diastolic pressure, Pa
+        p_max = 100*mmHg  # Maximum pressure, Pa
+        p_wave = "p_0 + (p_max-p_0)*exp(-0.5*pow((x[1]-inlet+4.0*s-a*t)/s, 2.0))"  # Moving Gaussian
+        p_inlet = "p_0 + (p_max-p_0)*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]-inlet)/s, 2.0))"  # Oscillating inlet pressure
+        p_increase = "p_0 + (p_max-p_0)*t/T_max"  # Linearly increasing
+        p_const_0 = "p_0"
+        p_const_max = "p_max"
+        self.p_exp = Expression(p_increase, degree=2, p_max=p_max, p_0=p_0,
+                                T_max=self.T, L=L, inlet=inlet, f=10, a=0.02,
+                                s=0.003, t=0)
+
+        # Body forces
+        pass
+
+        # Prestress
+        self.pre_press_val = p_0  # Constant
+        pass
+
+        # Initial conditions
+        pass
+
+
+        # OBSERVATION PARAMETERS ##############################################
+
+        # Store quantities everywhere
+        self.store_everywhere = [False, False]
+
+        # Observe strain or stress ("displacement", "strain", "stress")
+        self.quantities = ["strain", "stress"]
+
+        # Operator on observed quantity (scalar) "[i,j]", "tr" or "vonMises"
+        self.observators = ["[2,2]", "tr"]
+
+        # Observation points
+        not_quants = []
+        not_quants.append("displacement")
+        not_quants.append("traction")
+        self.obs_points.append(obs_point("midpoint", Point(R_inner+0.5*(R_outer-R_inner), 0, 0), not_quants+self.quantities))
+
+
 
     ############################################################################
 
     def get_parent_mesh(self):
 
         # Read mesh from mesh file
-        self.parent_mesh = Mesh(self.mesh_folder + "/mesh_double.xml")
+        self.parent_mesh = Mesh("{}/{}".format(self.mesh_folder, self.mesh_file))
         #self.parent_mesh = refine(self.parent_mesh)
 
         # Read domains and boundaries from mesh file

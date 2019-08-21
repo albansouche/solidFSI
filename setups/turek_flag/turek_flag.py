@@ -83,7 +83,7 @@ class Setup(Setup_base):
         # PHYSICAL PROPERTIES #################################################
 
         # Time
-        self.T  = 5  # End time s.
+        self.T  = 0.1  # End time s.
         self.dt = 0.01  # Time step s.
         t = 0.0
 
@@ -123,13 +123,19 @@ class Setup(Setup_base):
 
         # OBSERVATION PARAMETERS ##############################################
 
+        # Store quantities everywhere
+        self.store_everywhere = [True]
+
         # Observe strain or stress ("strain", "stress")
-        self.quant = "stress"
+        self.quantities = ["stress"]
 
         # Operator on observed quantity (scalar) "[i,j]", "tr" or "vonMises"
-        self.obs = "tr"
+        self.observators = ["tr"]
 
-        self.obs_points.append(obs_point("A", Point(0.6, 0.2)))
+        # Observation points
+        not_quants = []
+        not_quants.append("displacement")
+        self.obs_points.append(obs_point("A", Point(0.6, 0.2), not_quants+self.quantities))
 
 
 
