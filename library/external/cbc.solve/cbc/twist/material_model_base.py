@@ -64,11 +64,10 @@ class MaterialModel():
             #epsilon = self.epsilon
             #S = diff(psi, epsilon)
             S = inv(self.F)*self.FirstPiolaKirchhoffStress(u)
-
         elif self.kinematic_measure == "RightCauchyGreen":
             C = self.C
             S = 2*diff(psi, C)
-        elif self.kinematic_measure ==  "GreenLagrangeStrain":
+        elif self.kinematic_measure == "GreenLagrangeStrain":
             E = self.E
             S = diff(psi, E)
         elif self.kinematic_measure == "CauchyGreenInvariants":

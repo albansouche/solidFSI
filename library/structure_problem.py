@@ -226,7 +226,7 @@ class StructurePreStressSolver(StaticHyperelasticity):
         res_error = 1
         res_tol = 2e-5
 
-        toto = File(setup.mesh_folder + "/prestress_iterations.pvd")
+        toto = File(setup.save_path + "/prestress_iterations.pvd")
         toto << d_0
 
         Xdiff = np.zeros(self.mesh_s.coordinates().shape)
@@ -239,7 +239,7 @@ class StructurePreStressSolver(StaticHyperelasticity):
 
             # calculate the traction vector
             T = assemble(inner(Constant(setup.pre_press_val)*n_s, Nd) * ds_s(subdomain_id=setup.fsi_id))
-            Tn = assemble(inner(Constant((1., 1., 1.)), Nd) * ds_s(subdomain_id=setup.fsi_id))
+            Tn = assemble(inner(Constant((1.0,)*subM.mesh_s.geometry().dim()), Nd) * ds_s(subdomain_id=setup.fsi_id))
             tract_S0.vector()[subM.fsi_dofs_s] = - (T.get_local()[subM.fsi_dofs_s] / Tn.get_local()[subM.fsi_dofs_s])
 
             # calculate the corresponding displacements

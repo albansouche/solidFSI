@@ -74,15 +74,13 @@ class StaticMomentumBalanceSolver(CBCSolver):
         if B == []:
             B = Constant((0,)*vector.mesh().geometry().dim())
 
-        # First Piola-Kirchhoff stress tensor based on the material
-        # model
+        # First Piola-Kirchhoff stress tensor based on the material model
         P = problem.first_pk_stress(u)
 
         # The variational form corresponding to hyperelasticity
         L = inner(P+pre_P, Grad(v))*dx - inner(B, v)*dx
 
-        # Add contributions to the form from the Neumann boundary
-        # conditions
+        # Add contributions to the form from the Neumann boundary conditions
 
         # Get Neumann boundary conditions on the stress
         neumann_conditions = problem.neumann_conditions()
