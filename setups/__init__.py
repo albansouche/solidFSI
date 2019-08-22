@@ -45,6 +45,9 @@ class Setup_base():
         self.v0 = []
         self.extension = ""
         self.obs_points = []
+        self.store_everywhere = []
+        self.quantities = []
+        self.observators = []
 
     def reshape_parent_mesh(self, **namespace):
         """

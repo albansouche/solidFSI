@@ -30,17 +30,17 @@ class Setup(Setup_base):
         self.d_deg = 1  # Deformation degree (solid)
 
         # Dynamic or stationnary
-        self.is_dynamic = False
+        self.is_dynamic = True
 
         # Material constitutive law
-        self.solid_solver_model = "StVenantKirchhoff"
+        self.solid_solver_model = "LinearElastic"
 
         # Solvers
         self.solid_solver_scheme = "HHT"  # "HHT" or "CG1"
 
         # Set compiler arguments
         parameters["form_compiler"]["quadrature_degree"] = 6
-        os.environ["OMP_NUM_THREADS"] = "8"#"4"
+        os.environ["OMP_NUM_THREADS"] = "40"#"4"
 
         # Set log outputs from dolfin
         set_log_level(90)  # 0 to 100 / more info >> lower value
@@ -58,8 +58,9 @@ class Setup(Setup_base):
 
         # Parent mesh info. !! values can be redefined in get_parent_mesh() !!
         self.mesh_folder = "setups/PW3d/mesh"
-        self.mesh_file = "cyl25x4mm_double.xml"
-        self.mesh_split = True  # spliting the mesh True or False. Submesh are systematically saved in the folder
+        #self.mesh_file = "cyl25x4mm.xml"
+        self.mesh_file = "{}{}.xml".format("cyl10x2cm", "_double")
+        self.mesh_split = False  # spliting the mesh True or False. Submesh are systematically saved in the folder
         self.parent_mesh = []  # if parent mesh provided by a xml or xml.gz file
         self.dom_f_id = 1  # value of the cell id for the fluid domain in the parent mesh file
         self.dom_s_id = 2  # value of the cell id for the solid domain in the parent mesh file
@@ -85,8 +86,8 @@ class Setup(Setup_base):
         inlet = - 0.5*L
 
         # Time
-        self.T = 5  # End time s.
-        self.dt = 0.1  # Time step s.
+        self.T  = 0.01  # End time s.
+        self.dt = 0.0001 # Time step s.
 
         # Solid properties
         self.rho_s = 1.0E3  # density
@@ -96,14 +97,14 @@ class Setup(Setup_base):
 
         # Pressure
         mmHg = 133.322387415  # 1mmHg in Pa
-        p_0 = 50*mmHg  # Diastolic pressure, Pa
-        p_max = 100*mmHg  # Maximum pressure, Pa
+        p_0 = 0#60*mmHg  # Diastolic pressure, Pa
+        p_max = 120*mmHg  # Maximum pressure, Pa
         p_wave = "p_0 + (p_max-p_0)*exp(-0.5*pow((x[1]-inlet+4.0*s-a*t)/s, 2.0))"  # Moving Gaussian
         p_inlet = "p_0 + (p_max-p_0)*0.5*(1.0+sin(2.0*pi*f*t))*exp(-0.5*pow((x[1]-inlet)/s, 2.0))"  # Oscillating inlet pressure
-        p_increase = "p_0 + (p_max-p_0)*t/T_max"  # Linearly increasing
+        p_increase = "p_0 + (p_max-p_0)*t/T_max"  # Linearely increasing
         p_const_0 = "p_0"
         p_const_max = "p_max"
-        self.p_exp = Expression(p_increase, degree=2, p_max=p_max, p_0=p_0,
+        self.p_exp = Expression(p_const_0, degree=2, p_max=p_max, p_0=p_0,
                                 T_max=self.T, L=L, inlet=inlet, f=10, a=0.02,
                                 s=0.003, t=0)
 
@@ -111,29 +112,33 @@ class Setup(Setup_base):
         pass
 
         # Prestress
-        self.pre_press_val = p_0  # Constant
+        #self.pre_press_val = p_0  # Constant
         pass
 
         # Initial conditions
+        self.u0 = Expression(("factor*x[0]*exp(-0.5*pow((x[1]-inlet)/s, 2.0))",
+                              "0.0",
+                              "factor*x[2]*exp(-0.5*pow((x[1]-inlet)/s, 2.0))"),
+                             degree=2, R=R_inner, factor=0.3, inlet=inlet, s=0.02*L)
         pass
 
 
         # OBSERVATION PARAMETERS ##############################################
 
         # Store quantities everywhere
-        self.store_everywhere = [False, False]
+        self.store_everywhere = [True]
 
         # Observe strain or stress ("displacement", "strain", "stress")
-        self.quantities = ["strain", "stress"]
+        self.quantities = ["stress"]
 
         # Operator on observed quantity (scalar) "[i,j]", "tr" or "vonMises"
-        self.observators = ["[2,2]", "tr"]
+        self.observators = ["vonMises"]
 
         # Observation points
         not_quants = []
         not_quants.append("displacement")
         not_quants.append("traction")
-        self.obs_points.append(obs_point("midpoint", Point(R_inner+0.5*(R_outer-R_inner), 0, 0), not_quants+self.quantities))
+        #self.obs_points.append(obs_point("midpoint", Point(R_inner+0.5*(R_outer-R_inner), 0, 0), not_quants+self.quantities))
 
 
 
@@ -180,7 +185,7 @@ class Setup(Setup_base):
         # Mesh problem bcs
 
         # Dirichlet conditions for the solid problem
-        if 0:#fixed_outlet:
+        if 1:#fixed_outlet:
             self.bcs_s_vals = [freeslip, freeslip, noslip]
             self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
             self.bcs_s_fct_sps = ["y", "y", "xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
@@ -192,7 +197,7 @@ class Setup(Setup_base):
             self.bcs_s_vals = [noslip]
             self.bcs_s_ids = [self.outlet_s_id]
             self.bcs_s_fct_sps = ["xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
-        elif 1:
+        elif 0:
             self.bcs_s_vals = [noslip, noslip, noslip]
             self.bcs_s_ids = [self.inlet_s_fixed_id, self.inlet_s_id, self.outlet_s_id]
             self.bcs_s_fct_sps = ["xyz", "xyz", "xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)

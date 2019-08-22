@@ -67,7 +67,7 @@ class Setup(Setup_base):
         self.is_dynamic = True
 
         # Material constitutive law
-        self.solid_solver_model = "StVenantKirchhoff"
+        self.solid_solver_model = "LinearElastic"
 
         # solvers
         self.solid_solver_scheme = "HHT"  #  "HHT" or "CG1"
@@ -80,11 +80,43 @@ class Setup(Setup_base):
         set_log_level(40)  # 0 to 100 / more info >> lower value
 
 
+        # DATA PARAMETERS #####################################################
+
+        # Flag or box imitating flag
+        flag_or_box = "box"
+
+        # path to CBC.solve
+        self.CBCsolve_path = "library/external/cbc.solve"
+
+        # saving data
+        self.save_step = 1  # saving solution every "n" steps
+        self.save_path = "results/turek_flag/{}/".format("dynamic"*self.is_dynamic + "static"*(not self.is_dynamic))
+        self.extension = self.solid_solver_model
+        #self.extension += "_{}".format(factor)
+        self.save_path += self.extension
+
+        # parent mesh info. !! values can be redefined in get_parent_mesh() !!
+        self.mesh_folder = "setups/turek_flag/mesh_{}".format(flag_or_box)
+        self.mesh_split = True  # spliting the mesh True or False. Submesh are systematically saved in the folder
+        self.parent_mesh = []  # if parent mesh provided by a xml or xml.gz file
+        self.dom_f_id = 0  # value of the cell id for the fluid domain in the parent mesh file
+        self.dom_s_id = 1  # value of the cell id for the solid domain in the parent mesh file
+        self.inlet_id = 0  # fluid inlet id
+        self.outlet_id = 1  # fluid outlet id
+        self.noslip_f_id = 2 # fluid wall id
+        self.noslip_s_id = 3  # solid clamp id
+        self.fsi_id = 4  # IMPORTANT VARIABLE value of the FSI facet id in the parent mesh file
+
+        # "Box-flag" mesh does not have a fluid domain.
+        if flag_or_box == "box":
+            self.dom_f_id = self.dom_s_id
+
+
         # PHYSICAL PROPERTIES #################################################
 
         # Time
-        self.T  = 0.1  # End time s.
-        self.dt = 0.01  # Time step s.
+        self.T  = 0.5  # End time s.
+        self.dt = 0.005  # Time step s.
         t = 0.0
 
         # Solid prop.
@@ -120,7 +152,6 @@ class Setup(Setup_base):
 
 
 
-
         # OBSERVATION PARAMETERS ##############################################
 
         # Store quantities everywhere
@@ -136,39 +167,6 @@ class Setup(Setup_base):
         not_quants = []
         not_quants.append("displacement")
         self.obs_points.append(obs_point("A", Point(0.6, 0.2), not_quants+self.quantities))
-
-
-
-        # DATA PARAMETERS #####################################################
-
-        # Flag or box imitating flag
-        flag_or_box = "box"
-
-        # path to CBC.solve
-        self.CBCsolve_path = "library/external/cbc.solve"
-
-        # saving data
-        self.save_step = 1  # saving solution every "n" steps
-        self.save_path = "results/turek_flag/{}/".format("dynamic"*self.is_dynamic + "static"*(not self.is_dynamic))
-        self.extension = self.solid_solver_model
-        #self.extension += "_{}".format(factor)
-        self.save_path += self.extension
-
-        # parent mesh info. !! values can be redefined in get_parent_mesh() !!
-        self.mesh_folder = "setups/turek_flag/mesh_{}".format(flag_or_box)
-        self.mesh_split = True  # spliting the mesh True or False. Submesh are systematically saved in the folder
-        self.parent_mesh = []  # if parent mesh provided by a xml or xml.gz file
-        self.dom_f_id = 0  # value of the cell id for the fluid domain in the parent mesh file
-        self.dom_s_id = 1  # value of the cell id for the solid domain in the parent mesh file
-        self.inlet_id = 0  # fluid inlet id
-        self.outlet_id = 1  # fluid outlet id
-        self.noslip_f_id = 2 # fluid wall id
-        self.noslip_s_id = 3  # solid clamp id
-        self.fsi_id = 4  # IMPORTANT VARIABLE value of the FSI facet id in the parent mesh file
-
-        # "Box-flag" mesh does not have a fluid domain.
-        if flag_or_box == "box":
-            self.dom_f_id = self.dom_s_id
 
 
     ############################################################################

@@ -106,6 +106,8 @@ V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
 d_scalar = FiniteElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 
+tract_S.assign(Constant((0,)*subM.mesh_s.geometry().dim()))
+
 if setup.u0 == []:
     assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
 else:
@@ -212,7 +214,9 @@ while t < setup.T:
         T.vector()[:] = assemble(inner(setup.p_exp*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
     T.vector()[:] = - np.divide(T.vector().get_local(), Tn.vector().get_local())
     TT = project(T, D)
-    tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
+    #tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
+    #tract_S.vector().gather_on_zero()[subM.fsi_dofs_s] = TT.vector().vector().gather_on_zero()[subM.fsi_dofs_s]
+    tract_S.vector().gather_on_zero()[subM.fsi_dofs_s] = TT.vector().gather_on_zero()[subM.fsi_dofs_s]
 
     # Solve for solid deformation
     if setup.solid_solver_scheme == "HHT":

@@ -22,7 +22,7 @@ def timestep_range(T, dt):
     """Return a matching time step range for given end time and time
     step. Note that the time step may be adjusted so that it matches
     the given end time."""
-    
+
     # Compute range
     ds = dt
     n = ceil(T / dt)
@@ -31,18 +31,18 @@ def timestep_range(T, dt):
 
     # Warn about changing time step
     if ds != dt:
-        warning("Changing time step from %g to %g" % (ds, dt))
+        print("Warning: Changing time step from %g to %g" % (ds, dt))
 
     return dt, t_range
 
 def timestep_range_cfl(problem, mesh):
     """Return a sensible default time step and time step range based
     on an approximate CFL condition."""
-    
+
     # Get problem parameters
     T = problem.end_time()
     dt = problem.time_step()
-        
+
     # Set time step based on mesh if not specified
     if dt is None:
         dt = 0.25*mesh.hmin()

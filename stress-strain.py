@@ -28,19 +28,25 @@ models = ['LinearElastic', 'StVenantKirchhoff']
 N_models = len(models)
 
 #xlabel = 'Infinitesimal volumetric Strain $\\operatorname{tr}(\\epsilon)$'
-#xlabel = 'Infinitesimal Strain $\\epsilon_{zz}$'
+xlabel = 'Infinitesimal Strain $\\epsilon_{zz}$'
 #xlabel = 'Green-Lagrange Strain $E_{zz}$'
-xlabel = 'Norm of displacement'
+#xlabel = 'Displacement'
 
-ylabel = '$\\operatorname{tr}(\\sigma)/3 [mmHg]$'
+#ylabel = '$\\operatorname{tr}(\\sigma)/3$'
+ylabel = 'Traction pressure'
 #ylabel = '$\\sigma_{zz}$'
 #ylabel = '$Von Mises stress'
+
+ylabel += ' [mmHg]'
+
+R_inner = 0.002
+R_outer = 0.0023
+R_midpoint = 0.5*(R_inner+R_outer)
 
 ###############################################################################
 
 mmHg = 133.322387415
-if 0:
-    mmHg = 1
+#mmHg = 1
 
 eps = [0] * N_models
 sig = [0] * N_models
@@ -53,11 +59,16 @@ relerr = [0] * (N_models-1)
 for i in range(N_models):
     d = np.load("{}/{}/{}_displacement.npy".format(folder, models[i], point_name))
     d_norm = np.array([npl.norm(d[j]) for j in range(np.shape(d)[0])])
-    eps[i] = d_norm/0.011
-    #eps[i] np.load("{}/{}/{}_displacement.npy".format(folder, models[i], point_name))
-    sig[i] = np.load("{}/{}/{}_stress.npy".format(folder, models[i], point_name))/3/mmHg
+    print(d_norm)
+    import sys; sys.exit()
+    eps[i] = d_norm/R_midpoint
+    #eps[i] = np.load("{}/{}/{}_strain.npy".format(folder, models[i], point_name))
+    #sig[i] = np.load("{}/{}/{}_stress.npy".format(folder, models[i], point_name))/3/mmHg
+    sig[i] = np.load("{}/{}/{}_traction.npy".format(folder, models[i], point_name))/mmHg
     relation_point[i] = interp1d(eps[i], sig[i])
     relation[i] = np.vectorize(extrap1d(relation_point[i]))
+
+
 
 # Difference between linear model (0) and the others (1->N_models)
 for i in range(1, N_models):
@@ -69,10 +80,10 @@ plt.figure()
 for i in range(N_models):
     #if i >= 1: plt.plot(eps[0], relation[i](eps[0]), label=models[i]+' interpolated')
     plt.plot(eps[i], sig[i], label=models[i])
-plt.plot(0,0)
+plt.scatter(0,0)
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
-plt.title('Stress-strain in the point $(0.011, 0.0, 0.0)$')
+plt.title('Stress-strain in midpoint')
 plt.legend()
 plt.savefig(folder+'/stress-strain.png')
 

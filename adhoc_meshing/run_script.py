@@ -16,10 +16,10 @@ import argparse
 
 
 # Inputs #######################################################################
-ifile_surface = "meshes/cyl10x2cm.vtp"
-ofile_mesh = "meshes/cyl10x2cm"
-TargetEdgeLength = 0.002
-Thick_solid = 0.002
+ifile_surface = "meshes/cyl25x4mm.vtp" # "meshes/cyl10x2cm.vtp" #
+ofile_mesh = "meshes/cyl25x4mm_double" # "meshes/cyl10x2cm" #
+TargetEdgeLength = 0.0004 # 0.002 #
+Thick_solid = 0.0003 # 0.002 #
 BoundaryLayerThicknessFactor = Thick_solid / TargetEdgeLength  # Wall Thickness == TargetEdgeLength*BoundaryLayerThicknessFactor
 ################################################################################
 
@@ -60,7 +60,7 @@ meshGenerator.MaxEdgeLength = 1.5*meshGenerator.TargetEdgeLength
 meshGenerator.MinEdgeLength = 0.5*meshGenerator.TargetEdgeLength
 # for boundary layer (used for both fluid boundary layer and solid domain)
 meshGenerator.BoundaryLayer = 1
-meshGenerator.NumberOfSubLayers = 2
+meshGenerator.NumberOfSubLayers = 2 # 1 #
 meshGenerator.BoundaryLayerOnCaps = 0
 meshGenerator.SubLayerRatio = 1
 meshGenerator.BoundaryLayerThicknessFactor = BoundaryLayerThicknessFactor

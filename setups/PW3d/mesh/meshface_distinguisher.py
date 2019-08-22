@@ -1,5 +1,9 @@
 import xml.etree.ElementTree as ET
-tree = ET.parse('cyl25x4mm_double.xml')
+
+name = "cyl10x2cm.xml"
+#name = "cyl25x4mm.xml"
+
+tree = ET.parse(name)
 root = tree.getroot()
 
 mesh = root[0]
@@ -17,4 +21,4 @@ for value in mesh_value_collection_2:
         if float(vertices[v0].get('y')) > 0:
             value.set('value', '11')
 
-tree.write('cyl25x4mm_double.xml')
+tree.write(name)
