@@ -219,12 +219,12 @@ class StructurePreStressSolver(StaticHyperelasticity):
         D = FunctionSpace(self.mesh_s, de)
         Nd = TestFunction(D)
 
-        d_old = Function(D)
+        d_old = Function(D)  # d_old initially zero
         ddiff = d_0-d_old
 
         cpt = 0
         res_error = 1
-        res_tol = 2e-5
+        res_tol = 1e-6
 
         toto = File(setup.save_path + "/prestress_iterations.pvd")
         toto << d_0
@@ -253,7 +253,11 @@ class StructurePreStressSolver(StaticHyperelasticity):
                   % (res_error, res_tol))
 
             # move solid mesh
-            ALE.move(self.mesh_s, project(-ddiff, Dm))
+            minus_ddiff_Dm = project(-ddiff, Dm)
+            for obs_point in setup.obs_points:
+                obs_point.move_point(minus_ddiff_Dm(obs_point.point))  # Move obs-points with mesh
+            ALE.move(self.mesh_s, minus_ddiff_Dm)
+            self.mesh_s.bounding_box_tree().build(self.mesh_s)
 
             assign(d_old, d_0)
 
@@ -269,7 +273,7 @@ class StructurePreStressSolver(StaticHyperelasticity):
         #fr = HDF5File(mpi_comm_world(), setup.mesh_folder + "/subMeshes_ini.h5", 'r')
         fr = HDF5File(mpi_comm_world(), setup.mesh_folder + "/subMeshes.h5", 'r')
         fr.read(mesh, "mesh_s", False)
-        bds = MeshFunction('size_t', mesh, 2)
+        bds = MeshFunction('size_t', mesh, mesh.geometry().dim()-1)
         fr.read(bds, "boundaries_s")
 
         # move the mesh points

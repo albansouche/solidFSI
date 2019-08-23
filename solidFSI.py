@@ -106,7 +106,7 @@ V_dum = FunctionSpace(subM.mesh_f, de)  # this is a hack of the FSI solver
 d_scalar = FiniteElement("CG", subM.mesh_s.ufl_cell(), setup.d_deg)
 D_scalar = FunctionSpace(subM.mesh_s, d_scalar)
 
-tract_S.assign(Constant((0,)*subM.mesh_s.geometry().dim()))
+#tract_S.assign(Constant((0,)*subM.mesh_s.geometry().dim()))  # Initial value
 
 if setup.u0 == []:
     assign(d_, project(Constant((0.0,)*subM.mesh_s.geometry().dim()), D))
@@ -131,11 +131,6 @@ if setup.pre_press_val != []:
     # save the geometry as mesh .pvd file (FIXME: create a function to output .vtp surface file)
     name_file2save = "prestress_mesh"
     _pre_struct.save_prestress_surface(setup, d_0, name_file2save)
-
-    # Move observation points with initial displacement
-    for obs_point in setup.obs_points:
-        disp_point = -d_0(obs_point.point)
-        obs_point.move_point(disp_point)
 
     # Pass initial displacement
     d_.assign(d_0)
@@ -182,7 +177,7 @@ time_list.append(t)
 sol_d_file.write(d_, t)
 
 for i,_ in enumerate(sol_char_file):
-    #sol_char_file[i].write(observations[i], t)
+    sol_char_file[i].write(observations[i], t)
     pass
 
 # Observe quantities at observation points
@@ -213,10 +208,10 @@ while t < setup.T:
     else:  # Direct Expression object
         T.vector()[:] = assemble(inner(setup.p_exp*n_s, Nd1) * ds_s(subdomain_id=setup.fsi_id))
     T.vector()[:] = - np.divide(T.vector().get_local(), Tn.vector().get_local())
+    #T.vector()[:] = - np.divide(T.vector().gather_on_zero()[:], Tn.vector().gather_on_zero()[:]) # TODO: fix parallel
     TT = project(T, D)
-    #tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
-    #tract_S.vector().gather_on_zero()[subM.fsi_dofs_s] = TT.vector().vector().gather_on_zero()[subM.fsi_dofs_s]
-    tract_S.vector().gather_on_zero()[subM.fsi_dofs_s] = TT.vector().gather_on_zero()[subM.fsi_dofs_s]
+    tract_S.vector()[subM.fsi_dofs_s] = TT.vector()[subM.fsi_dofs_s]
+    #tract_S.vector().gather_on_zero()[subM.fsi_dofs_s] = TT.vector().gather_on_zero()[subM.fsi_dofs_s]
 
     # Solve for solid deformation
     if setup.solid_solver_scheme == "HHT":
