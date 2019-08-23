@@ -21,23 +21,17 @@ def extrap1d(interpolator):
 
 ### PARAMETERS ################################################################
 
-folder = 'results/tube/PW3d/static'
-point_name = "midpoint"
+folder = 'results/tube/PW3d/static'#+'_prestress'
+point_name = 'midpoint'
 
-models = ['LinearElastic', 'StVenantKirchhoff']
+models = ['LinearElastic', 'StVenantKirchhoff']# + ['LinearElastic_prestress', 'StVenantKirchhoff_prestress']
 N_models = len(models)
 
-#xlabel = 'Infinitesimal volumetric Strain $\\operatorname{tr}(\\epsilon)$'
-xlabel = 'Infinitesimal Strain $\\epsilon_{zz}$'
-#xlabel = 'Green-Lagrange Strain $E_{zz}$'
-#xlabel = 'Displacement'
+xlabel = 'displacement'
+xlabel = 'strain'
 
-#ylabel = '$\\operatorname{tr}(\\sigma)/3$'
-ylabel = 'Traction pressure'
-#ylabel = '$\\sigma_{zz}$'
-#ylabel = '$Von Mises stress'
-
-ylabel += ' [mmHg]'
+ylabel = 'traction'
+#ylabel = 'stress'
 
 R_inner = 0.002
 R_outer = 0.0023
@@ -48,8 +42,8 @@ R_midpoint = 0.5*(R_inner+R_outer)
 mmHg = 133.322387415
 #mmHg = 1
 
-eps = [0] * N_models
-sig = [0] * N_models
+X = [0] * N_models
+Y = [0] * N_models
 relation_point = [0] * N_models
 relation = [0] * N_models
 err = [0] * (N_models-1)
@@ -57,41 +51,54 @@ relerr = [0] * (N_models-1)
 
 # Extract data
 for i in range(N_models):
-    d = np.load("{}/{}/{}_displacement.npy".format(folder, models[i], point_name))
-    d_norm = np.array([npl.norm(d[j]) for j in range(np.shape(d)[0])])
-    print(d_norm)
-    import sys; sys.exit()
-    eps[i] = d_norm/R_midpoint
-    #eps[i] = np.load("{}/{}/{}_strain.npy".format(folder, models[i], point_name))
-    #sig[i] = np.load("{}/{}/{}_stress.npy".format(folder, models[i], point_name))/3/mmHg
-    sig[i] = np.load("{}/{}/{}_traction.npy".format(folder, models[i], point_name))/mmHg
-    relation_point[i] = interp1d(eps[i], sig[i])
+    X[i] = np.load('{}/{}/{}_{}.npy'.format(folder, models[i], point_name, xlabel))#[1*(i<2):]
+    if xlabel == 'displacement':
+        d_norm = np.array([npl.norm(X[i][j]) for j in range(np.shape(X[i])[0])])
+        X[i] = d_norm/R_midpoint
+    Y[i] = np.load('{}/{}/{}_{}.npy'.format(folder, models[i], point_name, ylabel))#[1*(i<2):]
+    Y[i] /= mmHg
+    if ylabel == 'stress':  # tr(sigma)
+        Y[i] /= 3  # p = 1/3 tr(sigma)
+    relation_point[i] = interp1d(X[i], Y[i])
     relation[i] = np.vectorize(extrap1d(relation_point[i]))
 
-
+if 0:#xlabel == 'displacement':
+    shift = X[2][0] - X[0][0]
+    for i in range(2, N_models):
+        X[i] -= shift
 
 # Difference between linear model (0) and the others (1->N_models)
 for i in range(1, N_models):
-    err[i-1] = np.abs(relation[i](eps[0])-sig[0])
-    relerr[i-1] = err[i-1][1:]/sig[0][1:]
+    err[i-1] = np.abs(relation[i](X[0])-Y[0])
+    relerr[i-1] = err[i-1][1:]/Y[0][1:]
+
+
+
+#xlabel = 'Infinitesimal volumetric Strain $\\operatorname{tr}(\\epsilon)$'
+#xlabel = 'Infinitesimal Strain $\\epsilon_{zz}$'
+#xlabel = 'Green-Lagrange Strain $E_{zz}$'
+#ylabel = '$\\operatorname{tr}(\\sigma)/3$'
+#ylabel = 'Traction pressure'
+#ylabel = '$\\sigma_{zz}$'
+#ylabel = '$Von Mises stress'
 
 # Plot stress-strain relation for all models
 plt.figure()
 for i in range(N_models):
-    #if i >= 1: plt.plot(eps[0], relation[i](eps[0]), label=models[i]+' interpolated')
-    plt.plot(eps[i], sig[i], label=models[i])
-plt.scatter(0,0)
+    #if i >= 1: plt.plot(X[0], relation[i](X[0]), label=models[i]+' interpolated')
+    plt.plot(X[i], Y[i], label=models[i])
+#plt.scatter(0,0)
 plt.xlabel(xlabel)
-plt.ylabel(ylabel)
-plt.title('Stress-strain in midpoint')
+plt.ylabel(ylabel+' [mmHg]')
+plt.title('{}{} in midpoint'.format(xlabel, ylabel))
 plt.legend()
-plt.savefig(folder+'/stress-strain.png')
+plt.savefig(folder+'/{}-{}.png'.format(xlabel, ylabel))
 
 
 # Plot relative difference between linear model and the others
 plt.figure()
 for i in range(1, N_models):
-    plt.plot(eps[0][1:], relerr[i-1], label=models[i])
+    plt.plot(X[0][1:], relerr[i-1], label=models[i])
 plt.xlabel(xlabel)
 plt.ylabel('Relative error of '+ylabel)
 plt.title('Relative difference: $\\frac{y_{hyper}-y_{lin}}{y_{lin}}$')

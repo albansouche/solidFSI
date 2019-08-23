@@ -83,7 +83,7 @@ class Setup(Setup_base):
         # DATA PARAMETERS #####################################################
 
         # Flag or box imitating flag
-        flag_or_box = "flag"
+        flag_or_box = "box"
 
         # path to CBC.solve
         self.CBCsolve_path = "library/external/cbc.solve"
@@ -145,7 +145,7 @@ class Setup(Setup_base):
         self.prestress = P0
 
         # Pressure on FSI-interface that will automatically find u0 and change initial mesh
-        self.pre_press_val = 1.0E4
+        #self.pre_press_val = 1.0E3
 
         # Initial conditions
         if self.is_dynamic:
@@ -169,7 +169,7 @@ class Setup(Setup_base):
         # Observation points
         not_quants = []
         not_quants.append("displacement")
-        tol = 1.0E-2
+        tol = 1.0E-8
         self.obs_points.append(obs_point("A", Point(0.6-tol, 0.2), not_quants+self.quantities))
 
 
