@@ -83,17 +83,17 @@ class Setup(Setup_base):
         # DATA PARAMETERS #####################################################
 
         # Flag or box imitating flag
-        flag_or_box = "box"
+        flag_or_box = "flag"
 
         # path to CBC.solve
         self.CBCsolve_path = "library/external/cbc.solve"
 
         # saving data
-        self.save_step = 1  # saving solution every "n" steps
-        self.save_path = "results/turek_flag/{}/".format("dynamic"*self.is_dynamic + "static"*(not self.is_dynamic))
         self.extension = self.solid_solver_model
         #self.extension += "_{}".format(factor)
+        self.save_path = "results/turek_flag/{}/".format("dynamic"*self.is_dynamic + "static"*(not self.is_dynamic))
         self.save_path += self.extension
+        self.save_step = 1  # saving solution every "n" steps
 
         # parent mesh info. !! values can be redefined in get_parent_mesh() !!
         self.mesh_folder = "setups/turek_flag/mesh_{}".format(flag_or_box)
@@ -126,7 +126,7 @@ class Setup(Setup_base):
         self.lamda_s = self.nu_s*2.*self.mu_s/(1. - 2.*self.nu_s)
         self.young = 2*self.mu_s*(1+self.nu_s) # Young's modulus
 
-        # FSI pressure expression
+        # Fluid FSI-wall pressure expression
         #self.p_exp = Expression("0.6 - tol < x[0] ? value : 0.0", degree=2, tol=1.0E-14, value=-1.0E3, t=t)  # Traction
 
         # Body forces
@@ -143,6 +143,9 @@ class Setup(Setup_base):
 
         # Prestress
         self.prestress = P0
+
+        # Pressure on FSI-interface that will automatically find u0 and change initial mesh
+        self.pre_press_val = 1.0E4
 
         # Initial conditions
         if self.is_dynamic:
@@ -166,7 +169,8 @@ class Setup(Setup_base):
         # Observation points
         not_quants = []
         not_quants.append("displacement")
-        self.obs_points.append(obs_point("A", Point(0.6, 0.2), not_quants+self.quantities))
+        tol = 1.0E-2
+        self.obs_points.append(obs_point("A", Point(0.6-tol, 0.2), not_quants+self.quantities))
 
 
     ############################################################################
@@ -217,9 +221,14 @@ class Setup(Setup_base):
         # Mesh problem bcs
 
         # Dirichlet conditions for the solid problem
-        self.bcs_s_vals = [noslip]
-        self.bcs_s_ids = [self.noslip_s_id]
-        self.bcs_s_fct_sps = ["xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
+        if 1:
+            self.bcs_s_vals = [noslip]
+            self.bcs_s_ids = [self.noslip_s_id]
+            self.bcs_s_fct_sps = ["xyz"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
+        else:
+            self.bcs_s_vals = [freeslip]
+            self.bcs_s_ids = [self.noslip_s_id]
+            self.bcs_s_fct_sps = ["x"]  # "x", "y", "z" (freeslip) or "xyz" (noslip)
 
         return
 
